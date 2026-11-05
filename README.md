@@ -47,6 +47,37 @@ uv venv && uv pip install -e '.[dev]'
 
 Check it works with `unpixel --version`.
 
+## Update
+
+Use the command that matches how you installed unpixel.
+
+**With uv:**
+
+```sh
+uv tool upgrade unpixel
+```
+
+uv lists the old and new commits when there is an update, and prints `Nothing to upgrade` when you already have the latest. The version number does not always change between commits, so `unpixel --version` may not show the difference.
+
+**With pip, in a virtual environment:**
+
+```sh
+~/.venvs/unpixel/bin/pip install --upgrade --force-reinstall git+https://github.com/jotadrilo/unpixel
+```
+
+**From a clone, for development:**
+
+```sh
+git pull
+uv pip install -e '.[dev]'
+```
+
+An install pinned to a commit, such as `git+https://github.com/jotadrilo/unpixel@abc1234`, stays on that commit. To follow the latest version instead:
+
+```sh
+uv tool install --force --reinstall git+https://github.com/jotadrilo/unpixel
+```
+
 ## Usage
 
 ```
