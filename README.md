@@ -97,6 +97,7 @@ unpixel INPUT [options]
 | `-o`, `--output FILE.svg` | Path | next to the input | You want the output elsewhere. The report and preview go beside it, and missing folders are created. |
 | `--force` | | off | Overwrite existing output files. Without it, unpixel refuses to overwrite and changes nothing. |
 | `--no-report` | | off | You want only the SVG. |
+| `--open` | | off | See the preview right away, in your default image viewer. If it cannot open, you get a warning and the SVG is still written. Cannot be combined with `--no-report`. |
 | `--json` | | off | A program or AI reads the result. |
 | `--color WHEN` | `auto`, `always`, `never` | `auto` | Color in the terminal. `auto` uses it on a terminal only, follows `NO_COLOR` and `FORCE_COLOR`, and `--json` output never contains color. |
 
@@ -133,7 +134,7 @@ The SVG's `width` and `height` match the source image in pixels, but it scales t
 This section is everything an AI agent needs. Follow it in order.
 
 1. **Install** if `unpixel --version` fails, using the commands above.
-2. **Run once** with `--json`, adding only flags that need no measured value:
+2. **Run once** with `--json`, adding only flags that need no measured value. Do not add `--open` unless the user asks, because it opens a window on their screen:
    ```sh
    unpixel input.png --json
    ```

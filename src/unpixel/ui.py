@@ -10,6 +10,8 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
+import sys
 import time
 from contextlib import contextmanager
 
@@ -23,6 +25,21 @@ MAX_THUMB_COLUMNS = 72
 MAX_THUMB_ROWS = 24
 CHECKER = ((150, 150, 150), (168, 168, 168))  # close mid-greys: black and white art both show, and it stays quiet
 CHECKER_SQUARE = 6  # half-block pixels
+
+
+def open_file(path: str) -> bool:
+    """Open a file in the system's default viewer. Returns False if that was not possible."""
+    try:
+        if sys.platform == "win32":
+            os.startfile(path)  # noqa: S606
+            return True
+        command = "open" if sys.platform == "darwin" else "xdg-open"
+        done = subprocess.run(
+            [command, path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15
+        )
+        return done.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def color_enabled(mode: str, stream) -> bool:

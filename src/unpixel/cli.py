@@ -17,7 +17,7 @@ from . import __version__
 from .color import parse_hex, to_hex
 from .report import contrast_background, verify, write_preview, write_report
 from .segment import InvalidRequest, UnsuitableImage, segment
-from .ui import Style, print_error, print_header, print_summary, print_warnings, stage
+from .ui import Style, open_file, print_error, print_header, print_summary, print_warnings, stage
 from .vectorize import build_svg
 
 Image.MAX_IMAGE_PIXELS = None
@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-o", "--output", type=Path, metavar="FILE.svg", help="output path. Default: next to the input")
     parser.add_argument("--force", action="store_true", help="overwrite existing output files")
     parser.add_argument("--no-report", action="store_true", help="write only the SVG, without report or preview")
+    parser.add_argument("--open", action="store_true", help="open the preview in your default image viewer when done")
     parser.add_argument("--json", action="store_true", help="print a machine-readable result on stdout")
     parser.add_argument("--color", choices=["auto", "always", "never"], default="auto",
                         help="color in terminal output. 'auto' uses it on a terminal, unless NO_COLOR is set. Default: auto")
@@ -106,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     raw_arguments = list(sys.argv[1:] if argv is None else argv)
     options = _options(args, parser)
+    if args.open and args.no_report:
+        parser.error("--open needs the preview, which --no-report turns off")
 
     svg_path = args.output or args.input.with_suffix(".svg")
     stem = svg_path.with_suffix("")
@@ -167,6 +170,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
+
+    if args.open and not open_file(str(preview_path)):
+        seg.warnings.append(f"Could not open the preview automatically. It is at {preview_path}.")
 
     result = {
         "status": "ok",

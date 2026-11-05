@@ -303,3 +303,31 @@ def test_grey_uses_the_grey_ramp_without_truecolor(monkeypatch):
     style = Style(io.StringIO(), "always")
     assert style._channel((150, 150, 150), 38).startswith("38;5;2")
     assert int(style._channel((150, 150, 150), 38).split(";")[2]) >= 232
+
+
+def test_open_shows_the_preview(save, stamp, capsys, monkeypatch):
+    opened = []
+    monkeypatch.setattr("unpixel.cli.open_file", lambda path: opened.append(path) or True)
+    _, result = run(capsys, save(stamp), "--open")
+    assert opened == [result["preview"]]
+
+
+def test_nothing_opens_without_the_flag(save, stamp, capsys, monkeypatch):
+    opened = []
+    monkeypatch.setattr("unpixel.cli.open_file", lambda path: opened.append(path) or True)
+    run(capsys, save(stamp))
+    assert opened == []
+
+
+def test_failing_to_open_is_a_warning_and_the_svg_is_kept(save, stamp, capsys, monkeypatch):
+    monkeypatch.setattr("unpixel.cli.open_file", lambda path: False)
+    code, result = run(capsys, save(stamp), "--open")
+    assert code == 0
+    assert any("Could not open" in w for w in result["warnings"])
+    assert open(result["svg"]).read(4) == "<svg"
+
+
+def test_open_with_no_report_is_a_usage_error(save, stamp):
+    with pytest.raises(SystemExit) as info:
+        main([str(save(stamp)), "--open", "--no-report"])
+    assert info.value.code == 2
