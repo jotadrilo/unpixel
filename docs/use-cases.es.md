@@ -14,6 +14,7 @@ Cada caso indica la situación, el comando y qué comprobar. La instalación y l
 | Un archivo para plóter de corte o serigrafía | Colores que nunca se solapen | [6](#6-preparar-un-archivo-para-plóter-de-corte-o-serigrafía) |
 | Demasiados tonos parecidos | Una paleta más simple | [7](#7-reducir-el-número-de-colores) |
 | Un resultado roto o dentado | Uno mejor | [8](#8-corregir-detalle-perdido-o-bordes-dentados) |
+| Un diseño para una superficie oscura o de color | Verlo ahí y recolorearlo | [10](#10-comprobar-y-recolorear-para-la-superficie-de-destino) |
 | Una foto o una pintura | | [9](#9-cuándo-flattrace-no-es-la-herramienta-adecuada) |
 
 Antes de enviar nada a imprenta o producción, abre la vista previa, y también el informe si el diseño tiene detalles finos.
@@ -49,7 +50,7 @@ To make them transparent too, add --also-transparent '#FBFBFB'.
 flattrace letras.jpg --also-transparent '#FBFBFB' --force
 ```
 
-**Comprueba.** Dentro de las letras, la vista previa debe mostrar el color de contraste. `examples/clapperboard/knockout.svg` es este caso.
+**Comprueba.** Dentro de las letras, la vista previa debe mostrar el color de contraste. `examples/clapperboard/knockout.svg` es este caso. Las marcas finas que se confunden con el blanco desaparecen con él, como las líneas grises finas de la claqueta.
 
 ## 3. Rescatar un logo pequeño o borroso
 
@@ -133,6 +134,19 @@ flattrace pintura.png
 ```
 
 `examples/shaded-painting` se rechaza de esta forma. Aplanarla produciría miles de manchas sin sentido, así que flattrace se detiene en lugar de escribir un archivo malo. Para conseguir a propósito un efecto de cartel, puedes forzarlo con `--colors 6`, sabiendo que obtendrás eso. Si no, conserva esas imágenes en formato de mapa de bits.
+
+## 10. Comprobar y recolorear para la superficie de destino
+
+**Situación.** Un logo oscuro para una pegatina en un portátil oscuro. La vista previa por defecto usa un color elegido para mostrar defectos, así que puede verse bien aunque el logo apenas se note en la superficie real.
+
+```sh
+flattrace logo.png --preview-background '#1C1C1E'
+flattrace logo.png --preview-background '#1C1C1E' --colors '#F2F2F2' --force
+```
+
+El primer comando muestra el diseño sobre esa superficie. El segundo lo aclara: con un solo valor en `--colors`, todos los colores pasan a ser ese valor. Con varios colores, indica un sustituto por color o edita el `fill` de cada grupo en el SVG. `--preview-background` nunca cambia el SVG.
+
+**Comprueba.** La vista previa debe leerse con claridad sobre el color real de la superficie. flattrace no mide el contraste.
 
 ## Para scripts y asistentes de IA
 

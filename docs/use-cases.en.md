@@ -14,6 +14,7 @@ Each case gives the situation, the command, and what to check. Installation and 
 | A file for a cutter, plotter or screen printer | Colors that never overlap | [6](#6-prepare-a-file-for-a-cutter-plotter-or-screen-printing) |
 | Too many similar tones | A simpler palette | [7](#7-reduce-the-number-of-colors) |
 | A broken or jagged result | A better one | [8](#8-fix-lost-detail-or-jagged-edges) |
+| A design on a dark or colored surface | To see it there, and recolor it | [10](#10-check-and-recolor-for-the-surface-it-goes-on) |
 | A photo or painting | | [9](#9-when-flattrace-is-the-wrong-tool) |
 
 Before sending anything to print or production, open the preview, and the report if the design has fine detail.
@@ -49,7 +50,7 @@ To make them transparent too, add --also-transparent '#FBFBFB'.
 flattrace lettering.jpg --also-transparent '#FBFBFB' --force
 ```
 
-**Check.** Inside the letters, the preview should show the check color. `examples/clapperboard/knockout.svg` is this case.
+**Check.** Inside the letters, the preview should show the check color. `examples/clapperboard/knockout.svg` is this case. Thin marks that blend into the white go with it, such as the fine grey lines on the clapperboard.
 
 ## 3. Rescue a small or blurry logo
 
@@ -133,6 +134,19 @@ flattrace painting.png
 ```
 
 `examples/shaded-painting` is refused this way. Flattening it would produce thousands of meaningless blobs, so flattrace stops instead of writing a bad file. For a deliberate poster effect, you can force it with `--colors 6`, knowing that this is what you get. Otherwise, keep such images as raster.
+
+## 10. Check and recolor for the surface it goes on
+
+**Situation.** A dark logo for a sticker on a dark laptop. The default preview uses a color chosen to show defects, so it can look fine even though the logo will barely show on the real surface.
+
+```sh
+flattrace logo.png --preview-background '#1C1C1E'
+flattrace logo.png --preview-background '#1C1C1E' --colors '#F2F2F2' --force
+```
+
+The first command shows the design on that surface. The second turns it light: with one value in `--colors`, every color becomes that value. With several colors, list one replacement per color, or edit each group's `fill` in the SVG. `--preview-background` never changes the SVG.
+
+**Check.** The preview should read clearly on the real surface color. flattrace does not measure contrast.
 
 ## For scripts and AI assistants
 

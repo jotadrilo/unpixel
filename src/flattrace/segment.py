@@ -61,6 +61,10 @@ class UnsuitableImage(Exception):
     """The image is not flat-color artwork (photo, gradients, heavy texture)."""
 
 
+class InvalidRequest(Exception):
+    """The options cannot produce a result for this image."""
+
+
 @dataclass
 class Segmentation:
     labels: np.ndarray  # working-scale class per pixel; -1 means transparent
@@ -443,10 +447,25 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
                 if float(delta_e(rgb_lab[c], rgb_lab[o])) <= DUPLICATE_DE:
                     mapping[mapping == o] = c
 
+    # Decide transparency on the colors found in the image, before any requested recoloring.
+    removed_reps: set[int] = set()
+    for rgb_value in options.also_transparent:
+        target = srgb_to_lab(np.array(rgb_value, dtype=np.float32))
+        hit = [c for c in set(mapping.tolist()) if float(delta_e(rgb_lab[c], target)) <= TRANSPARENT_MATCH_DE]
+        if not hit:
+            warnings.append(f"--also-transparent {to_hex(rgb_value)} matched no color in the image.")
+        removed_reps.update(hit)
+    is_removed = np.isin(mapping, list(removed_reps))
+    if is_removed.all():
+        raise InvalidRequest("--also-transparent would remove every color in the image")
+
     # User palette and color-count requests only change which color each cluster becomes.
     if options.color_count is not None:
-        labs = srgb_to_lab(rgbs).astype(np.float64)
-        alive = {c: float(max(areas[c], 1)) for c in set(mapping.tolist())}
+        labs = rgb_lab.astype(np.float64)
+        alive = {c: 0.0 for c in set(mapping[~is_removed].tolist())}
+        for c in range(k):
+            if not is_removed[c]:
+                alive[int(mapping[c])] += float(max(areas[c], 1))
         if len(alive) < options.color_count:
             warnings.append(f"Asked for {options.color_count} colors but only {len(alive)} were found.")
         while len(alive) > options.color_count:
@@ -456,70 +475,50 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
             keep, drop = (p, q) if alive[p] >= alive[q] else (q, p)
             alive[keep] += alive.pop(drop)
             mapping[mapping == drop] = keep
+    source_reps = sorted(set(mapping[~is_removed].tolist()))  # the image's own colors, before recoloring
     final_rgbs = rgbs
     if options.palette:
         palette = np.array(options.palette, dtype=np.float32)
         pal_lab = srgb_to_lab(palette)
-        dist = np.stack([delta_e(pal_lab, srgb_to_lab(rgbs[c])) for c in range(k)])
+        dist = np.stack([delta_e(pal_lab, rgb_lab[c]) for c in range(k)])
         chosen = dist.argmin(1)
-        mapping = chosen[mapping]
-        final_rgbs = palette
-        for c in range(k):
-            if dist[c, chosen[c]] > 25:
+        for c in sorted(set(mapping[~is_removed].tolist())):
+            if dist[c, chosen[c]] > 25 and len(palette) > 1:
                 warnings.append(f"Detected color {to_hex(rgbs[c])} is far from every --colors value; "
                                 f"it became {to_hex(palette[chosen[c]])}.")
-        for i in set(range(len(palette))) - set(mapping.tolist()):
+        mapping = chosen[mapping]
+        final_rgbs = palette
+        for i in set(range(len(palette))) - set(mapping[~is_removed].tolist()):
             warnings.append(f"--colors value {to_hex(palette[i])} did not match anything in the image.")
 
-    used = sorted(set(mapping.tolist()))
+    used = sorted(set(mapping[~is_removed].tolist()))
     remap = {old: new for new, old in enumerate(used)}
     colors = [tuple(int(round(float(v))) for v in final_rgbs[old]) for old in used]
-    lookup = np.array([remap[int(mapping[c])] for c in range(k)] + [-1], dtype=np.int16)
+    lookup = np.array([-1 if is_removed[c] else remap[int(mapping[c])] for c in range(k)] + [-1], dtype=np.int16)
     raw = lookup[pixel_cluster]  # -1 indexes the trailing transparent entry
     if not options.palette and options.color_count is None and len(colors) > MAX_AUTO_COLORS:
         raise UnsuitableImage(
             f"{len(colors)} colors found; this looks like a photo or a shaded painting. "
             "Pass --colors N to force a reduced palette."
         )
-    if len(colors) > 1:
+    if len(colors) > 1 and not options.palette:
         bg_rgb = parse_hex(background_hex) if background_hex else None
         raw = _dissolve_fringes(raw, base, flat, colors, bg_rgb, min_flat=int(400 * factor**2))
     del pixel_cluster, regions, groups, lab, base
-
-    # Optional extra transparency for matching colors anywhere in the image.
     final_lab = srgb_to_lab(np.array(colors, dtype=np.float32))
-    removed = set()
-    for rgb_value in options.also_transparent:
-        dist = delta_e(final_lab, srgb_to_lab(np.array(rgb_value, dtype=np.float32)))
-        hit = np.nonzero(dist <= TRANSPARENT_MATCH_DE)[0].tolist()
-        if not hit:
-            warnings.append(f"--also-transparent {to_hex(rgb_value)} matched no color in the image.")
-        removed.update(hit)
-    if removed:
-        raw[np.isin(raw, list(removed))] = -1
-        kept = [i for i in range(len(colors)) if i not in removed]
-        if not kept:
-            raise UnsuitableImage("--also-transparent removed every color in the image")
-        relabel = {old: new for new, old in enumerate(kept)}
-        relabel[-1] = -1
-        table = np.full(len(colors) + 1, -1, dtype=np.int16)
-        for old, new in relabel.items():
-            table[old] = new
-        raw = table[raw]
-        colors = [colors[i] for i in kept]
-        final_lab = final_lab[kept]
 
     if background_lab is not None and background_ids:
-        for i, color in enumerate(colors):
-            if float(delta_e(final_lab[i], background_lab)) <= CLUSTER_DE:
+        for c in source_reps:
+            if float(delta_e(rgb_lab[c], background_lab)) <= CLUSTER_DE:
+                color = to_hex(rgbs[c])
                 warnings.append(
-                    f"Interior areas colored {to_hex(color)} look like the background but stayed opaque. To make "
-                    f"them transparent too, add --also-transparent '{to_hex(color)}'."
+                    f"Interior areas colored {color} look like the background but stayed opaque. To make "
+                    f"them transparent too, add --also-transparent '{color}'."
                 )
     if flat_share < MIN_FLAT_SHARE:
         warnings.append(
-            f"Only {flat_share:.0%} of the artwork is flat color, so gradients and fine texture will be flattened. "
-            "Inspect the report carefully."
+            f"Only {flat_share:.0%} of the artwork is flat color, so gradients and fine texture were flattened. "
+            "The SVG is valid; no flag changes this, so judge the preview, and use a larger source if you have one."
         )
 
     classes = list(range(len(colors))) + ([-1] if (raw == -1).any() else [])

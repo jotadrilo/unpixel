@@ -166,3 +166,36 @@ def test_no_false_color_at_corners_of_dark_on_dark_boxes(save, capsys):
         l["color"] for l in result["layers"] if close(l["color"], (255, 125, 65))
     )), dtype=np.uint8)).all(-1) & (rgba[..., 3] > 128)
     assert not orange[:, :260].any()
+
+
+def test_transparency_is_decided_before_recoloring(save, stamp, capsys):
+    _, first = run(capsys, save(stamp))
+    white = [l["color"] for l in first["layers"] if close(l["color"], (255, 255, 255))][0]
+    code, result = run(capsys, save(stamp, "again.png"), "--also-transparent", white, "--colors", "#F2F2F2")
+    assert code == 0
+    assert [l["color"] for l in result["layers"]] == ["#F2F2F2"]
+    rgba = drawn(result)
+    assert rgba[400, 400, 3] == 0  # the enclosed white is still removed
+    assert tuple(rgba[200, 400, :3]) == (0xF2, 0xF2, 0xF2)  # the black ring became light
+    assert not any("look like the background" in w for w in result["warnings"])  # judged on source colors
+
+
+def test_removing_every_color_is_a_usage_error(save, no_outline, capsys):
+    _, first = run(capsys, save(no_outline))
+    only = first["layers"][0]["color"]
+    code, result = run(capsys, save(no_outline, "again.png"), "--also-transparent", only)
+    assert code == 2 and "every color" in result["error"]
+
+
+def test_preview_background_is_used_and_stays_out_of_the_svg(save, ticket, capsys):
+    _, result = run(capsys, save(ticket), "--preview-background", "#1C1C1E")
+    assert result["preview_background"] == "#1C1C1E"
+    assert Image.open(result["preview"]).convert("RGB").getpixel((3, 3)) == (0x1C, 0x1C, 0x1E)
+    with open(result["svg"], encoding="utf-8") as handle:
+        assert "1C1C1E" not in handle.read()
+
+
+def test_output_directory_is_created(save, ticket, tmp_path, capsys):
+    target = tmp_path / "new" / "folder" / "out.svg"
+    code, result = run(capsys, save(ticket), "-o", target)
+    assert code == 0 and target.exists() and result["preview"].endswith("out.preview.png")
