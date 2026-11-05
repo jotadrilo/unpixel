@@ -204,6 +204,8 @@ unpixel axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/r
 
 A number works well here, since the tones are clearly grouped. Thin whiskers, stars and crumbs stay, while the shading on the toast and the flame merges into flat color. The result warns that white areas inside the artwork stayed opaque, which is right for the eyes and the highlights, so this one keeps them.
 
+The logo in the [main README](../README.md) is this same `result.svg`, with only its `viewBox` cropped to the artwork.
+
 ## 8. Fix lost detail or jagged edges
 
 **Situation.** Thin lines are broken or fine detail is clogged, or else outlines are visibly wavy.

@@ -1,3 +1,5 @@
+<p align="center"><img src="examples/axolotl/logo.svg" width="280" alt="The unpixel mascot: an axolotl astronaut surfing a flying slice of toast"></p>
+
 # unpixel
 
 Turn flat-color raster artwork (logos, stickers, illustrations, posters) into clean, layered SVG, with the background made transparent.
@@ -8,8 +10,7 @@ unpixel artwork.png
 
 The command writes `artwork.svg`, plus a report and a preview so you can check the result by eye. It detects the colors and the background by itself, and it works on upscaled or slightly blurry sources.
 
-<p align="center"><img src="examples/axolotl/result.preview.png" width="600" alt="The unpixel mascot, an axolotl astronaut surfing a flying slice of toast, vectorized with a transparent background"></p>
-<p align="center">The unpixel mascot, vectorized by unpixel with <code>--colors 8</code>. <a href="examples/README.md#an-illustration-with-soft-shading">See how</a>.</p>
+The logo above is a transparent SVG vectorized by unpixel itself, with `--colors 8`. [See how](examples/README.md#an-illustration-with-soft-shading).
 
 These results use no options at all:
 

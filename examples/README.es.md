@@ -204,6 +204,8 @@ unpixel axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/r
 
 Aquí un número funciona bien, porque los tonos están claramente agrupados. Los bigotes finos, las estrellas y las migas se conservan, mientras que el sombreado de la tostada y de la llama se funde en color plano. El resultado avisa de que las zonas blancas dentro de la ilustración se han quedado opacas, que es lo correcto para los ojos y los brillos, así que aquí se mantienen.
 
+El logo del [README principal](../README.md) es este mismo `result.svg`, con solo su `viewBox` recortado a la ilustración.
+
 ## 8. Corregir detalle perdido o bordes dentados
 
 **Situación.** Las líneas finas salen rotas o el detalle fino empastado, o bien los contornos se ven ondulados.

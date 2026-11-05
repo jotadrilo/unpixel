@@ -41,6 +41,7 @@ $u airmail/input.jpg --background keep --colors 6 -o airmail/six-colors.svg
 $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' -o airmail/four-colors.svg
 $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA,#D9562B' -o airmail/shaded-orange.svg
 $u axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/result.svg
+sed 's/viewBox="0 0 1408 768" width="1408" height="768"/viewBox="359 36 697 697" width="697" height="697"/' axolotl/result.svg > axolotl/logo.svg
 
 # 8. Fix lost detail or jagged edges
 $u ornament/input.png --detail low -o ornament/low.svg
