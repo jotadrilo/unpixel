@@ -1,4 +1,4 @@
-"""A small rasterizer for the SVG subset flattrace writes.
+"""A small rasterizer for the SVG subset unpixel writes.
 
 It reads the written file rather than internal state, so verification and previews show
 what a viewer will show, without requiring a system SVG library.

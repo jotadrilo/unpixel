@@ -15,7 +15,7 @@ Each case gives the situation, the command, and what to check. Installation and 
 | Too many similar tones | A simpler palette | [7](#7-reduce-the-number-of-colors) |
 | A broken or jagged result | A better one | [8](#8-fix-lost-detail-or-jagged-edges) |
 | A design on a dark or colored surface | To see it there, and recolor it | [10](#10-check-and-recolor-for-the-surface-it-goes-on) |
-| A photo or painting | | [9](#9-when-flattrace-is-the-wrong-tool) |
+| A photo or painting | | [9](#9-when-unpixel-is-the-wrong-tool) |
 
 Before sending anything to print or production, open the preview, and the report if the design has fine detail.
 
@@ -24,7 +24,7 @@ Before sending anything to print or production, open the preview, and the report
 **Situation.** An invitation or a ticket with a cream card and a dark outline, on a white page. You want the card without the page. Removing "all light pixels" would destroy the cream card and anything pale inside it.
 
 ```sh
-flattrace ticket.png
+unpixel ticket.png
 ```
 
 Only the color connected to the image border is removed, so a cream card inside an outline stays opaque, even when it is nearly white. Colors are detected for you. The map in `examples/france-map` is this case.
@@ -36,10 +36,10 @@ Only the color connected to the image border is removed, so a cream card inside 
 **Situation.** A black lettering design for a T-shirt or a sticker. White inside the letters must disappear too, or the design shows white patches on a colored shirt.
 
 ```sh
-flattrace lettering.jpg
+unpixel lettering.jpg
 ```
 
-If flattrace finds enclosed areas that look like the background, it keeps them opaque and tells you what to do:
+If unpixel finds enclosed areas that look like the background, it keeps them opaque and tells you what to do:
 
 ```
 Warning: Interior areas colored #FBFBFB look like the background but stayed opaque.
@@ -47,7 +47,7 @@ To make them transparent too, add --also-transparent '#FBFBFB'.
 ```
 
 ```sh
-flattrace lettering.jpg --also-transparent '#FBFBFB' --force
+unpixel lettering.jpg --also-transparent '#FBFBFB' --force
 ```
 
 **Check.** Inside the letters, the preview should show the check color. `examples/clapperboard/knockout.svg` is this case. Thin marks that blend into the white go with it, such as the fine grey lines on the clapperboard.
@@ -57,10 +57,10 @@ flattrace lettering.jpg --also-transparent '#FBFBFB' --force
 **Situation.** All you have is a small PNG from an old website, or a JPEG screenshot.
 
 ```sh
-flattrace old-logo.png
+unpixel old-logo.png
 ```
 
-Small images are enlarged before tracing and edges are smoothed, so the result scales cleanly. flattrace cannot invent what the file does not contain: text smaller than about 10 pixels turns into blobs. `examples/clapperboard` starts from 113 pixels wide, and its large shapes are clean while its tiny labels are lost.
+Small images are enlarged before tracing and edges are smoothed, so the result scales cleanly. unpixel cannot invent what the file does not contain: text smaller than about 10 pixels turns into blobs. `examples/clapperboard` starts from 113 pixels wide, and its large shapes are clean while its tiny labels are lost.
 
 **Check.** Compare the close-ups in the report. Consider retyping small text over the result in a design program.
 
@@ -69,7 +69,7 @@ Small images are enlarged before tracing and edges are smoothed, so the result s
 **Situation.** The source is a JPEG, so its navy measures `#03162F` while the brand navy is `#04162E`.
 
 ```sh
-flattrace logo.jpg --colors '#04162E,#BB100F,#FEF3E1'
+unpixel logo.jpg --colors '#04162E,#BB100F,#FEF3E1'
 ```
 
 Each detected color becomes the closest color in your list, and every layer uses exactly those values. Warnings appear if a detected color is far from all of yours, or if one of yours matched nothing, which usually means a mistyped value.
@@ -81,10 +81,10 @@ Each detected color becomes the closest color in your list, and every layer uses
 **Situation.** A poster that fills the whole image, to be reprinted large.
 
 ```sh
-flattrace poster.jpg --background keep
+unpixel poster.jpg --background keep
 ```
 
-Without the flag, flattrace notices that the border is not one uniform color, removes nothing and warns you. Use `--background keep` to say that this is what you want. `examples/poster` is this case: a 1930s screen print reduced to eight tones.
+Without the flag, unpixel notices that the border is not one uniform color, removes nothing and warns you. Use `--background keep` to say that this is what you want. `examples/poster` is this case: a 1930s screen print reduced to eight tones.
 
 **Check.** Real gradients become bands. In the example, the transition in the sky has a noisy edge, which is fine at a distance but may need retouching.
 
@@ -93,7 +93,7 @@ Without the flag, flattrace notices that the border is not one uniform color, re
 **Situation.** Each color will be cut from vinyl or printed as its own screen, so a color must not continue underneath another.
 
 ```sh
-flattrace sticker.png --layers cutout
+unpixel sticker.png --layers cutout
 ```
 
 Each color appears only where it is visible. Each `<g id="color-N">` group in the SVG can be selected and sent separately.
@@ -105,7 +105,7 @@ Each color appears only where it is visible. Each `<g id="color-N">` group in th
 **Situation.** Detection found seven tones and you are paying for three inks.
 
 ```sh
-flattrace artwork.png --colors 3
+unpixel artwork.png --colors 3
 ```
 
 The closest colors merge until three remain, and the background does not count.
@@ -117,44 +117,44 @@ The closest colors merge until three remain, and the background does not count.
 **Situation.** Thin lines are broken or fine detail is clogged, or else outlines are visibly wavy.
 
 ```sh
-flattrace artwork.png --detail high --force   # keeps more small detail
-flattrace artwork.png --detail low --force    # gives smoother outlines
+unpixel artwork.png --detail high --force   # keeps more small detail
+unpixel artwork.png --detail low --force    # gives smoother outlines
 ```
 
 **Check.** Compare the close-ups in the report for the two versions. Metrics alone can miss broken lines, so look.
 
-## 9. When flattrace is the wrong tool
+## 9. When unpixel is the wrong tool
 
 **Situation.** A photo, a shaded painting, a soft airbrushed illustration.
 
 ```sh
-flattrace painting.png
-# flattrace: error: image not suitable for flat-color tracing: 20 colors found; ...
+unpixel painting.png
+# unpixel: error: image not suitable for flat-color tracing: 20 colors found; ...
 # exit code 3
 ```
 
-`examples/shaded-painting` is refused this way. Flattening it would produce thousands of meaningless blobs, so flattrace stops instead of writing a bad file. For a deliberate poster effect, you can force it with `--colors 6`, knowing that this is what you get. Otherwise, keep such images as raster.
+`examples/shaded-painting` is refused this way. Flattening it would produce thousands of meaningless blobs, so unpixel stops instead of writing a bad file. For a deliberate poster effect, you can force it with `--colors 6`, knowing that this is what you get. Otherwise, keep such images as raster.
 
 ## 10. Check and recolor for the surface it goes on
 
 **Situation.** A dark logo for a sticker on a dark laptop. The default preview uses a color chosen to show defects, so it can look fine even though the logo will barely show on the real surface.
 
 ```sh
-flattrace logo.png --preview-background '#1C1C1E'
-flattrace logo.png --preview-background '#1C1C1E' --colors '#F2F2F2' --force
+unpixel logo.png --preview-background '#1C1C1E'
+unpixel logo.png --preview-background '#1C1C1E' --colors '#F2F2F2' --force
 ```
 
 The first command shows the design on that surface. The second turns it light: with one value in `--colors`, every color becomes that value. With several colors, list one replacement per color, or edit each group's `fill` in the SVG. `--preview-background` never changes the SVG.
 
-**Check.** The preview should read clearly on the real surface color. flattrace does not measure contrast.
+**Check.** The preview should read clearly on the real surface color. unpixel does not measure contrast.
 
 ## For scripts and AI assistants
 
-Add `--json` to any command, and read the exit code. The README has the [workflow to follow](../README.md#using-flattrace-from-an-ai-assistant).
+Add `--json` to any command, and read the exit code. The README has the [workflow to follow](../README.md#using-unpixel-from-an-ai-assistant).
 
 ```sh
 for file in logos/*.png; do
-  flattrace "$file" --json > "${file%.png}.result.json" || echo "failed: $file"
+  unpixel "$file" --json > "${file%.png}.result.json" || echo "failed: $file"
 done
 ```
 

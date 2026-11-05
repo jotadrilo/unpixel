@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "flattrace"
+name = "unpixel"
 version = "0.1.0"
 description = "Turn flat-color raster artwork into clean, layered SVG with a transparent background."
 readme = "README.md"
@@ -16,10 +16,10 @@ dependencies = ["numpy>=1.26", "pillow>=10", "scipy>=1.11", "potracer>=0.0.4"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-flattrace = "flattrace.cli:main"
+unpixel = "unpixel.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/flattrace"]
+packages = ["src/unpixel"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

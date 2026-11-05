@@ -1,9 +1,9 @@
-# flattrace
+# unpixel
 
 Turn flat-color raster artwork (logos, stickers, illustrations, posters) into clean, layered SVG, with the background made transparent.
 
 ```sh
-flattrace artwork.png
+unpixel artwork.png
 ```
 
 The command writes `artwork.svg`, plus a report and a preview so you can check the result by eye. It detects the colors and the background by itself, and it works on upscaled or slightly blurry sources.
@@ -25,32 +25,32 @@ Requires Python 3.10 or newer, and `git`. Nothing else: there are no system libr
 **With [uv](https://docs.astral.sh/uv/) (recommended):**
 
 ```sh
-uv tool install git+https://github.com/jotadrilo/flattrace
+uv tool install git+https://github.com/jotadrilo/unpixel
 ```
 
 **With pip, in a virtual environment:**
 
 ```sh
-python3 -m venv ~/.venvs/flattrace
-~/.venvs/flattrace/bin/pip install git+https://github.com/jotadrilo/flattrace
-~/.venvs/flattrace/bin/flattrace --version   # or add that bin directory to your PATH
+python3 -m venv ~/.venvs/unpixel
+~/.venvs/unpixel/bin/pip install git+https://github.com/jotadrilo/unpixel
+~/.venvs/unpixel/bin/unpixel --version   # or add that bin directory to your PATH
 ```
 
 **From a clone, for development:**
 
 ```sh
-git clone https://github.com/jotadrilo/flattrace
-cd flattrace
+git clone https://github.com/jotadrilo/unpixel
+cd unpixel
 uv venv && uv pip install -e '.[dev]'
 .venv/bin/pytest
 ```
 
-Check it works with `flattrace --version`.
+Check it works with `unpixel --version`.
 
 ## Usage
 
 ```
-flattrace INPUT [options]
+unpixel INPUT [options]
 ```
 
 `INPUT` is a PNG, JPEG, WebP or any other format Pillow reads. Transparent pixels in the input count as white.
@@ -64,7 +64,7 @@ flattrace INPUT [options]
 | `--detail LEVEL` | `low`, `medium`, `high` | `medium` | `low` if edges look jagged. `high` if thin lines or small shapes get lost. |
 | `--preview-background '#RRGGBB'` | A color | contrasting color | You know the surface the design goes on: check it there. It only affects the preview and report, not the SVG. |
 | `-o`, `--output FILE.svg` | Path | next to the input | You want the output elsewhere. The report and preview go beside it, and missing folders are created. |
-| `--force` | | off | Overwrite existing output files. Without it, flattrace refuses to overwrite and changes nothing. |
+| `--force` | | off | Overwrite existing output files. Without it, unpixel refuses to overwrite and changes nothing. |
 | `--no-report` | | off | You want only the SVG. |
 | `--json` | | off | A program or AI reads the result. |
 
@@ -90,14 +90,14 @@ The SVG's `width` and `height` match the source image in pixels, but it scales t
 | `2` | Bad arguments, unreadable input, output already exists, or `--also-transparent` would remove every color | Fix the command, or add `--force` if overwriting is intended |
 | `3` | Image unsuitable: a photo, or heavy shading | Do not retry with other flags, unless a reduced palette is what is wanted (`--colors N`) |
 
-## Using flattrace from an AI assistant
+## Using unpixel from an AI assistant
 
 This section is everything an AI agent needs. Follow it in order.
 
-1. **Install** if `flattrace --version` fails, using the commands above.
+1. **Install** if `unpixel --version` fails, using the commands above.
 2. **Run once** with `--json`, adding only flags that need no measured value:
    ```sh
-   flattrace input.png --json
+   unpixel input.png --json
    ```
    - "keep the background": `--background keep`.
    - "for a sticker cutter", "vinyl", "plotter" or "screen printing": `--layers cutout`. A printed sticker uses the default.
@@ -110,7 +110,7 @@ This section is everything an AI agent needs. Follow it in order.
    - see-through areas that should be solid, or the reverse;
    - colored fringes along edges;
    - broken thin lines, and fine detail clogged into blobs;
-   - low contrast against the surface the design is going on, which flattrace does not check.
+   - low contrast against the surface the design is going on, which unpixel does not check.
 
    For lost detail, try `--detail high`, which can also make outlines wobblier and add specks. For jagged edges or specks, try `--detail low`, which can lose fine detail. Try each at most once, with `--force` or a different `-o`, and keep the better one. If neither helps, the limit is the source image: say so and ask for a larger one.
 7. **Report** the SVG path to the user, along with the colors and any limitation you saw. Do not delete the report or preview unless asked.
@@ -186,4 +186,4 @@ Tests use synthetic images built in `tests/conftest.py`.
 
 ## License
 
-GPL-2.0-or-later, because flattrace depends on [potracer](https://github.com/tatarize/potrace), a GPL-licensed port of potrace. SVG files you generate are yours: this license does not apply to the program's output.
+GPL-2.0-or-later, because unpixel depends on [potracer](https://github.com/tatarize/potrace), a GPL-licensed port of potrace. SVG files you generate are yours: this license does not apply to the program's output.

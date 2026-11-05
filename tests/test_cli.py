@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 
-from flattrace.cli import main
-from flattrace.color import delta_e, parse_hex, srgb_to_lab
-from flattrace.render import render_svg
+from unpixel.cli import main
+from unpixel.color import delta_e, parse_hex, srgb_to_lab
+from unpixel.render import render_svg
 
 from conftest import CREAM, NAVY, RED
 

@@ -34,7 +34,7 @@ class Options:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="flattrace",
+        prog="unpixel",
         description="Turn flat-color raster artwork (logos, stickers, illustrations) into layered SVG, "
         "with the background made transparent. Writes INPUT.svg, plus INPUT.report.html and "
         "INPUT.preview.png so the result can be checked by eye.",
@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true", help="overwrite existing output files")
     parser.add_argument("--no-report", action="store_true", help="write only the SVG, without report or preview")
     parser.add_argument("--json", action="store_true", help="print a machine-readable result on stdout")
-    parser.add_argument("--version", action="version", version=f"flattrace {__version__}")
+    parser.add_argument("--version", action="version", version=f"unpixel {__version__}")
     return parser
 
 
@@ -92,7 +92,7 @@ def _options(args, parser) -> Options:
 def _fail(args, code: int, message: str) -> int:
     if args.json:
         print(json.dumps({"status": "error", "exit_code": code, "error": message}, indent=2))
-    print(f"flattrace: error: {message}", file=sys.stderr)
+    print(f"unpixel: error: {message}", file=sys.stderr)
     return code
 
 

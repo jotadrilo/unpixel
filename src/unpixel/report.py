@@ -139,7 +139,7 @@ def write_report(source_rgb, svg, seg, metrics, hotspots, layers, background, in
     warnings = "".join(f"<li>{html.escape(w)}</li>" for w in seg.warnings) or "<li>None</li>"
     document = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>flattrace report: {html.escape(input_name)}</title>
+<title>unpixel report: {html.escape(input_name)}</title>
 <style>
 body{{font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:1560px;padding:16px;background:#fff;color:#222}}
 .pair{{display:grid;grid-template-columns:1fr 1fr;gap:8px}} img{{width:100%;height:auto;display:block;border:1px solid #ccc}}
