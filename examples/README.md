@@ -187,6 +187,23 @@ The shadow on the left of this poster darkens the orange until it is closer to r
 
 **Check.** Merging can make two neighboring areas the same color, losing the boundary between them.
 
+### An illustration with soft shading
+
+**Situation.** An illustration looks flat, but its highlights and soft edges add up to more tones than unpixel accepts by default. This is common in generated artwork. Here it is unpixel's mascot, with shine on the helmet, the planet and the face.
+
+```sh
+unpixel axolotl/input.png -o axolotl/result.svg
+# unpixel: error: image not suitable for flat-color tracing: 20 colors found; ...
+# exit code 3
+unpixel axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/result.svg
+```
+
+| Input | `--colors 8`, on a check color |
+|---|---|
+| <img src="axolotl/input.png" width="400" alt="Axolotl astronaut surfing a flying slice of toast, with a UFO and a planet, on white"> | <img src="axolotl/result.preview.png" width="400" alt="The same illustration in eight flat colors, with no background and its whiskers, stars and crumbs intact"> |
+
+A number works well here, since the tones are clearly grouped. Thin whiskers, stars and crumbs stay, while the shading on the toast and the flame merges into flat color. The result warns that white areas inside the artwork stayed opaque, which is right for the eyes and the highlights, so this one keeps them.
+
 ## 8. Fix lost detail or jagged edges
 
 **Situation.** Thin lines are broken or fine detail is clogged, or else outlines are visibly wavy.

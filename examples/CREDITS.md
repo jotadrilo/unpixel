@@ -28,4 +28,6 @@ Listed as CC0 by [Openverse](https://openverse.org) on 2026-11-05. The source pa
 
 ## Made for this project
 
+`axolotl/input.png`, the project's mascot, was generated with Google Gemini for this project.
+
 `watermark/*.png` are the `france-map` input enlarged 2×, with a "SAMPLE" overlay added for this project at three strengths. The watermark is not anyone else's.

@@ -187,6 +187,23 @@ La sombra de la izquierda de este cartel oscurece el naranja hasta acercarlo al 
 
 **Comprueba.** Al fusionar, dos zonas vecinas pueden quedar del mismo color y perderse el límite entre ellas.
 
+### Una ilustración con sombreado suave
+
+**Situación.** Una ilustración parece plana, pero sus brillos y bordes suaves suman más tonos de los que unpixel acepta por defecto. Es habitual en imágenes generadas. Aquí es la mascota de unpixel, con brillos en el casco, el planeta y la cara.
+
+```sh
+unpixel axolotl/input.png -o axolotl/result.svg
+# unpixel: error: image not suitable for flat-color tracing: 20 colors found; ...
+# código de salida 3
+unpixel axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/result.svg
+```
+
+| Entrada | `--colors 8`, sobre un color de comprobación |
+|---|---|
+| <img src="axolotl/input.png" width="400" alt="Ajolote astronauta surfeando una tostada voladora, con un ovni y un planeta, sobre blanco"> | <img src="axolotl/result.preview.png" width="400" alt="La misma ilustración en ocho colores planos, sin fondo y con sus bigotes, estrellas y migas intactos"> |
+
+Aquí un número funciona bien, porque los tonos están claramente agrupados. Los bigotes finos, las estrellas y las migas se conservan, mientras que el sombreado de la tostada y de la llama se funde en color plano. El resultado avisa de que las zonas blancas dentro de la ilustración se han quedado opacas, que es lo correcto para los ojos y los brillos, así que aquí se mantienen.
+
 ## 8. Corregir detalle perdido o bordes dentados
 
 **Situación.** Las líneas finas salen rotas o el detalle fino empastado, o bien los contornos se ven ondulados.
