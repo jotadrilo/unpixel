@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ni
+from scipy.spatial import Delaunay, QhullError
 
 from .color import delta_e, parse_hex, srgb_to_lab, to_hex
 
@@ -43,8 +44,15 @@ MINOR_CLUSTER_DE = 20.0
 DUPLICATE_DE = 4.0
 MAX_AUTO_COLORS = 16
 FRINGE_DE = 12.0
-SPLIT_MIN_DE = 9.0  # one region with two sides this far apart is two colors
+ISLAND_DE = 5.0  # an island this close to its only neighbor is a sharpening artifact, not a thin line
+UNEXPLAINED_DE = 18.0
+UNEXPLAINED_BIN = 2.0
+RIDGE_GRADIENT = 3.0
+UNEXPLAINED_MIN_SHARE = 0.0003
+MAX_EXPLAINED_CENTERS = 12
+SPLIT_MIN_DE = 7.0  # one region with two sides this far apart is two colors
 SPLIT_MIN_SHARE = 0.05
+SPLIT_MAX_MIDDLE = 0.1
 SPLIT_COHERENCE = 0.6
 BORDER_SHARE = 0.85
 BACKGROUND_MATCH_DE = 15.0
@@ -120,6 +128,55 @@ def _find_groups(flat_lab: np.ndarray) -> np.ndarray:
     )
 
 
+def _add_unexplained_colors(lab: np.ndarray, rgb: np.ndarray, grad: np.ndarray, centers: np.ndarray) -> np.ndarray:
+    """Add colors that thin strokes carry but flat areas do not.
+
+    A thin line has almost no pixels away from an edge, so looking only at flat areas can miss
+    its color entirely. Pixels that no sRGB mix of two known colors can explain may belong to a
+    color not found yet. Edges of real images also carry halos that are not pure mixes, but those
+    sit on a slope, while the center of a stroke is a ridge. So only low-gradient pixels count.
+    """
+    ridge = grad[::3, ::3] <= RIDGE_GRADIENT
+    sample_lab = lab[::3, ::3][ridge]
+    sample_rgb = rgb[::3, ::3][ridge]
+    if sample_lab.shape[0] == 0:
+        return centers
+    # Comparing distinct colors instead of pixels keeps this fast on large images.
+    keys, index, counts = np.unique(
+        np.round(sample_lab / UNEXPLAINED_BIN).astype(np.int32), axis=0, return_index=True, return_counts=True
+    )
+    distinct = sample_lab[index]
+    weights = np.asarray(counts, dtype=np.float64)
+    del keys
+    steps = np.linspace(0.0, 1.0, 17)[:, None, None]
+    for _ in range(3):
+        if centers.shape[0] >= MAX_EXPLAINED_CENTERS:
+            break
+        anchors = np.stack(
+            [sample_rgb[((sample_lab - c) ** 2).sum(-1) <= ((sample_lab - c) ** 2).sum(-1).min() + 9.0].mean(0)
+             for c in centers]
+        ).astype(np.float32)
+        left, right = np.triu_indices(centers.shape[0])
+        mixes = srgb_to_lab((anchors[left][None] * (1 - steps) + anchors[right][None] * steps).reshape(-1, 3))
+        worst = np.full(distinct.shape[0], np.inf, dtype=np.float32)
+        for mix in mixes:
+            worst = np.minimum(worst, ((distinct - mix) ** 2).sum(-1))
+        far = np.sqrt(worst) > UNEXPLAINED_DE
+        # A blend of three or more known colors, as in a thin line between two regions, stays inside
+        # the range of those colors. A stroke in a genuinely new color falls outside it.
+        try:
+            far &= Delaunay(centers.astype(np.float64)).find_simplex(distinct) < 0
+        except (QhullError, ValueError):  # too few colors, or all on one plane, to define a volume
+            pass
+        if weights[far].sum() < UNEXPLAINED_MIN_SHARE * ridge.size:
+            break
+        found = _find_groups(np.repeat(distinct[far], np.minimum(counts[far], 2000), axis=0))
+        if found.shape[0] == 0:
+            break
+        centers = np.vstack([centers, found]).astype(np.float32)
+    return centers
+
+
 def _nearest(lab: np.ndarray, centers: np.ndarray) -> np.ndarray:
     best = np.full(lab.shape[:2], np.inf, dtype=np.float32)
     out = np.zeros(lab.shape[:2], dtype=np.int16)
@@ -156,6 +213,11 @@ def _try_split(lab_box: np.ndarray, flat_box: np.ndarray):
             return None
         a, b = samples[~side].mean(0), samples[side].mean(0)
     if float(delta_e(a, b)) < SPLIT_MIN_DE or min(side.mean(), 1 - side.mean()) < SPLIT_MIN_SHARE:
+        return None
+    # Two real colors leave few pixels in between. A smooth gradient is full of them.
+    axis = b - a
+    position = (samples - a) @ axis / float(axis @ axis)
+    if ((position > 1 / 3) & (position < 2 / 3)).mean() > SPLIT_MAX_MIDDLE:
         return None
     full = ((lab_box - a) ** 2).sum(-1) > ((lab_box - b) ** 2).sum(-1)
     for piece in (flat_box & full, flat_box & ~full):
@@ -263,12 +325,14 @@ def _dissolve_fringes(raw, base, flat, colors, background_rgb, min_flat) -> np.n
         if len(values) == 0 or any(int(v) not in palette for v in values) or own == -1:
             continue
         # With one neighbor the "path" is that color: an island sharpening pushed off its true color.
+        single = len(values) == 1
         values = np.array([values[0], values[-1]])
         a, b = palette[int(values[0])], palette[int(values[1])]
         mean = srgb_to_lab(base[box][mask].mean(0))
         path = srgb_to_lab(a * (1 - mix) + b * mix)
         to_path = float(delta_e(path, mean).min())
-        if to_path <= FRINGE_DE and to_path < float(delta_e(srgb_to_lab(palette[own]), mean)):
+        limit = ISLAND_DE if single else FRINGE_DE
+        if to_path <= limit and to_path < float(delta_e(srgb_to_lab(palette[own]), mean)):
             closer_a = ((base[box][mask] - a) ** 2).sum(-1) <= ((base[box][mask] - b) ** 2).sum(-1)
             raw[box][mask] = np.where(closer_a, values[0], values[1])
     return raw
@@ -308,7 +372,6 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
     grad = np.sqrt(grad)
     edges = grad > FLAT_GRADIENT
     flat = ~ni.binary_dilation(edges, iterations=max(1, int(round(2 * factor))))
-    del grad
     if flat.mean() < 0.02:
         raise UnsuitableImage("almost no flat color areas found; this looks like a photo or a gradient")
 
@@ -318,6 +381,8 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
     centers = _find_groups(samples)
     if centers.shape[0] == 0:
         raise UnsuitableImage("no dominant flat colors found")
+    centers = _add_unexplained_colors(lab, base, grad, centers)
+    del grad
 
     blurred = base + UNSHARP_AMOUNT * (base - _gauss_rgb(base, UNSHARP_SIGMA * factor))
     sharp_lab = srgb_to_lab(np.clip(blurred, 0, 255))
@@ -399,6 +464,24 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
         cluster_group.setdefault(int(region_group[rid]), [])
         if int(assign[rid]) not in cluster_group[int(region_group[rid])]:
             cluster_group[int(region_group[rid])].append(int(assign[rid]))
+    # Sharpening can pull a band of one color into another color's group. That cluster does not
+    # describe the group, so it must not be offered to the group's real thin strokes.
+    for gid, members_of_group in list(cluster_group.items()):
+        kept = [c for c in members_of_group if float(delta_e(cluster_lab[c], centers[gid])) <= GROUP_DE]
+        if kept:
+            cluster_group[gid] = kept
+        else:
+            del cluster_group[gid]
+    # A color used only in thin strokes has no solid region, but it is still a color.
+    # Slivers enclosed in the background's own group are not a color of their own.
+    sizes = np.bincount(regions.ravel(), minlength=count + 1)
+    background_groups = set(region_group[background_ids].tolist()) if background_ids else set()
+    for gid in range(centers.shape[0]):
+        members = (region_group == gid) & ~is_background
+        members[0] = False
+        if gid not in cluster_group and gid not in background_groups and sizes[members].sum() >= speck_area:
+            cluster_group[gid] = [cluster_lab.shape[0]]
+            cluster_lab = np.vstack([cluster_lab, centers[gid]]).astype(np.float32)
     for rid in range(1, count + 1):
         if assign[rid] >= 0 or is_background[rid]:
             continue
@@ -422,8 +505,11 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
         mask = pixel_cluster == c
         areas.append(int(mask.sum()))
         picked = base[mask & flat]
-        if picked.shape[0] == 0:
+        if picked.shape[0] < 50:  # thin strokes: use their core, as their edges are mixed with neighbors
             picked = base[mask]
+            if picked.shape[0]:
+                closeness = delta_e(srgb_to_lab(picked), cluster_lab[c])
+                picked = picked[closeness <= np.median(closeness)]
         rgbs.append(np.median(picked[:: max(1, picked.shape[0] // 200_000)], axis=0) if picked.size else np.zeros(3))
     rgbs = np.array(rgbs, dtype=np.float32)
 
@@ -466,6 +552,15 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
         for c in range(k):
             if not is_removed[c]:
                 alive[int(mapping[c])] += float(max(areas[c], 1))
+        # A speck-sized color must not take a slot from a real one, however different it looks.
+        if len(alive) > options.color_count:
+            floor = MINOR_CLUSTER_SHARE * sum(alive.values())
+            for tiny in sorted((c for c in alive if alive[c] < floor), key=lambda c: alive[c]):
+                others = [c for c in alive if c != tiny and alive[c] >= floor]
+                if others and len(alive) > options.color_count:
+                    nearest = others[int(delta_e(labs[others], labs[tiny]).argmin())]
+                    alive[nearest] += alive.pop(tiny)
+                    mapping[mapping == tiny] = nearest
         if len(alive) < options.color_count:
             warnings.append(f"Asked for {options.color_count} colors but only {len(alive)} were found.")
         while len(alive) > options.color_count:
@@ -475,7 +570,8 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
             keep, drop = (p, q) if alive[p] >= alive[q] else (q, p)
             alive[keep] += alive.pop(drop)
             mapping[mapping == drop] = keep
-    source_reps = sorted(set(mapping[~is_removed].tolist()))  # the image's own colors, before recoloring
+    source_mapping = mapping.copy()  # the image's own colors, before recoloring
+    source_reps = sorted(set(source_mapping[~is_removed].tolist()))
     final_rgbs = rgbs
     if options.palette:
         palette = np.array(options.palette, dtype=np.float32)
@@ -501,9 +597,23 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
             f"{len(colors)} colors found; this looks like a photo or a shaded painting. "
             "Pass --colors N to force a reduced palette."
         )
-    if len(colors) > 1 and not options.palette:
+    if len(source_reps) > 1:
+        # False edge colors are judged on what the image contains, so this happens before recoloring.
+        position = {rep: i for i, rep in enumerate(source_reps)}
+        source_lookup = np.array(
+            [-1 if is_removed[c] else position[int(source_mapping[c])] for c in range(k)] + [-1], dtype=np.int16
+        )
+        source_raw = source_lookup[pixel_cluster]
         bg_rgb = parse_hex(background_hex) if background_hex else None
-        raw = _dissolve_fringes(raw, base, flat, colors, bg_rgb, min_flat=int(400 * factor**2))
+        source_colors = [tuple(float(v) for v in rgbs[rep]) for rep in source_reps]
+        source_raw = _dissolve_fringes(source_raw, base, flat, source_colors, bg_rgb, min_flat=int(400 * factor**2))
+        final_of_source = np.array(
+            [0] * len(source_reps) + [-1], dtype=np.int16
+        )
+        for rep, i in position.items():
+            cluster = int(np.nonzero(source_mapping == rep)[0][0])
+            final_of_source[i] = remap[int(mapping[cluster])]
+        raw = final_of_source[source_raw]
     del pixel_cluster, regions, groups, lab, base
     final_lab = srgb_to_lab(np.array(colors, dtype=np.float32))
 

@@ -5,9 +5,16 @@ set -u
 cd "$(dirname "$0")"
 u="unpixel --force"
 
+# Showcase: no options at all
+$u coffee/input.png -o coffee/result.svg
+$u car/input.png -o car/result.svg
+$u award/input.png -o award/result.svg
+$u snow-globe/input.png -o snow-globe/result.svg
+
 # 1. Remove the background and keep everything else
 $u stamp/input.jpg -o stamp/result.svg
 $u badge/input.png -o badge/result.svg
+$u sleigh/input.png -o sleigh/result.svg
 
 # 2. Make enclosed white see-through too
 $u family/input.png -o family/result.svg
@@ -24,13 +31,15 @@ $u france-map/input.png --colors '#F26A21,#0B7A3B,#7A0019,#7F77E8,#101010,#1747D
 $u poster/input.jpg --background keep -o poster/result.svg
 
 # 6. Prepare a file for a cutter, plotter or screen printing
-$u airmail/input.jpg --background keep --colors 4 --layers cutout -o airmail/cutout.svg
+$u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' --layers cutout -o airmail/cutout.svg
 python plates.py airmail/cutout.svg airmail/plates.png
 
 # 7. Reduce the number of colors. Aged paper gives too many tones, so the first run is refused with exit code 3.
 $u airmail/input.jpg --background keep -o airmail/result.svg
 echo "airmail exit code: $? (3 expected)"
-$u airmail/input.jpg --background keep --colors 4 -o airmail/four-colors.svg
+$u airmail/input.jpg --background keep --colors 6 -o airmail/six-colors.svg
+$u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' -o airmail/four-colors.svg
+$u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA,#D9562B' -o airmail/shaded-orange.svg
 
 # 8. Fix lost detail or jagged edges
 $u ornament/input.png --detail low -o ornament/low.svg

@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from unpixel.cli import main
 from unpixel.color import delta_e, parse_hex, srgb_to_lab
@@ -199,3 +199,33 @@ def test_output_directory_is_created(save, ticket, tmp_path, capsys):
     target = tmp_path / "new" / "folder" / "out.svg"
     code, result = run(capsys, save(ticket), "-o", target)
     assert code == 0 and target.exists() and result["preview"].endswith("out.preview.png")
+
+
+def test_color_used_only_in_thin_strokes_is_kept(save, capsys):
+    """Thin dark lines on a mid-tone panel have almost no flat pixels, and must keep their own color."""
+    image = Image.new("RGB", (900, 700), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((100, 100, 800, 600), fill=(104, 110, 131))
+    for y in range(160, 560, 40):
+        draw.line((180, y, 720, y + 20), fill=(26, 29, 49), width=4)
+    soft = image.filter(ImageFilter.GaussianBlur(0.8))
+    _, result = run(capsys, save(soft))
+    assert len(result["layers"]) == 2
+    rgba = drawn(result)
+    dark = next(l["color"] for l in result["layers"] if close(l["color"], (26, 29, 49), 25))
+    is_dark = (rgba[..., :3] == np.array(parse_hex(dark), dtype=np.uint8)).all(-1) & (rgba[..., 3] > 128)
+    assert is_dark.mean() > 0.01
+    assert is_dark[:, 450].sum() >= 10 * 2  # every line still crosses the middle
+
+
+def test_tiny_color_does_not_take_a_slot_from_a_real_one(save, capsys):
+    image = Image.new("RGB", (1000, 800), (12, 18, 50))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((100, 100, 450, 700), fill=(204, 52, 7))
+    draw.rectangle((550, 100, 900, 400), fill=(245, 149, 98))
+    draw.rectangle((550, 450, 900, 700), fill=(253, 237, 170))
+    draw.rectangle((20, 20, 60, 60), fill=(60, 200, 90))  # a tiny patch, unlike anything else
+    _, result = run(capsys, save(image), "--background", "keep", "--colors", "4")
+    assert len(result["layers"]) == 4
+    for real in ((12, 18, 50), (204, 52, 7), (245, 149, 98), (253, 237, 170)):
+        assert has_color(result, real)

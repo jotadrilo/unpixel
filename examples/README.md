@@ -1,8 +1,19 @@
-# Use cases
+# Examples and use cases
 
-Each case gives the situation, the command, and what to check, with the real input and output. Installation and the full list of options are in the [README](../README.md). [Versión en español](use-cases.es.md).
+Every example here shows the real input, the real output and the exact command. Installation and the full list of options are in the [main README](../README.md). [Versión en español](README.es.md).
 
-Outputs are shown on a check color, which is not part of the SVG. Commands run from the `examples/` folder, and [`build.sh`](../examples/build.sh) regenerates all of them. Image credits are in [`CREDITS.md`](../examples/CREDITS.md).
+Outputs are shown on a check color, which is not part of the SVG. Commands run from this folder, and [`build.sh`](build.sh) regenerates all of them. Image credits are in [`CREDITS.md`](CREDITS.md).
+
+## The default: no options at all
+
+Most flat-color artwork needs nothing but the file name. These four use `unpixel input.png`, with colors and background detected automatically.
+
+| Input | Output | Detected |
+|---|---|---|
+| <img src="coffee/input.png" width="300" alt="Black lettering: Coffee is like a hug in a mug"> | <img src="coffee/result.preview.png" width="300" alt="The same lettering with no background"> | Black and white, on 682 × 1024 px. The white inside "HUG" and the cup stays. To remove it, see [case 2](#2-make-enclosed-white-see-through-too). |
+| <img src="car/input.png" width="300" alt="Pink car carrying a Christmas tree"> | <img src="car/result.preview.png" width="300" alt="The same car with no background, with its ornaments intact"> | Ten colors, down to the small tree ornaments. |
+| <img src="award/input.png" width="300" alt="Red and blue award rosette"> | <img src="award/result.preview.png" width="300" alt="The same rosette with no background, with its thin stitching"> | Three colors, keeping the thin ring, stars and stitching. |
+| <img src="snow-globe/input.png" width="300" alt="Snowman in a snow globe"> | <img src="snow-globe/result.preview.png" width="300" alt="The same snow globe with no background"> | Twelve colors, including the two similar blues of the glass and its rim. |
 
 ## Choosing a case
 
@@ -33,12 +44,24 @@ unpixel badge/input.png -o badge/result.svg
 
 | Input | Output |
 |---|---|
-| <img src="../examples/stamp/input.jpg" width="340" alt="Postage stamp on a white page"> | <img src="../examples/stamp/result.preview.png" width="340" alt="Stamp alone. The pale frame stays solid"> |
-| <img src="../examples/badge/input.png" width="340" alt="Black badge with a white center"> | <img src="../examples/badge/result.preview.png" width="340" alt="Badge alone. The outside and the gaps between its rays are clear, the enclosed center stays solid"> |
+| <img src="stamp/input.jpg" width="340" alt="Postage stamp on a white page"> | <img src="stamp/result.preview.png" width="340" alt="Stamp alone. The pale frame stays solid"> |
+| <img src="badge/input.png" width="340" alt="Black badge with a white center"> | <img src="badge/result.preview.png" width="340" alt="Badge alone. The outside and the gaps between its rays are clear, the enclosed center stays solid"> |
 
 Only the color connected to the image border is removed. The stamp keeps its pale frame and six detected colors. On the badge, the near-white center stays opaque because the outline encloses it, even though it is the same color as the page, while the gaps between the rays reach the outside and disappear.
 
 **Check.** The outside should show the check color, and enclosed pale areas should be solid.
+
+**The limit of this rule.** A pale area with no outline, touching the outside, looks like background to unpixel:
+
+```sh
+unpixel sleigh/input.png -o sleigh/result.svg
+```
+
+| Input | Output: the beard and the skin are gone |
+|---|---|
+| <img src="sleigh/input.png" width="340" alt="Santa on a sleigh, with a white beard and pale skin with no outline"> | <img src="sleigh/result.preview.png" width="340" alt="The same sleigh, with the beard and the skin see-through"> |
+
+No option separates them, because in the image they really do connect. Use `--background keep` for an opaque copy, or start from a version with an outline or a stronger background color.
 
 ## 2. Make enclosed white see-through too
 
@@ -61,7 +84,7 @@ unpixel family/input.png --also-transparent '#F8F6F5' -o family/knockout.svg
 
 | Input | Default: enclosed white stays | With `--also-transparent` |
 |---|---|---|
-| <img src="../examples/family/input.png" width="260" alt="Family is everything, black lettering"> | <img src="../examples/family/result.preview.png" width="260" alt="Lettering with white still inside the letters"> | <img src="../examples/family/knockout.preview.png" width="260" alt="Lettering with nothing but black ink"> |
+| <img src="family/input.png" width="260" alt="Family is everything, black lettering"> | <img src="family/result.preview.png" width="260" alt="Lettering with white still inside the letters"> | <img src="family/knockout.preview.png" width="260" alt="Lettering with nothing but black ink"> |
 
 Look at "is" and "EVERYTHING": in the last image, the letters are holes.
 
@@ -77,9 +100,9 @@ unpixel clapperboard/input.png -o clapperboard/result.svg
 
 | Input, 113 px wide, enlarged here | Output |
 |---|---|
-| <img src="../examples/clapperboard/input.png" width="340" alt="Tiny blurred clapperboard icon"> | <img src="../examples/clapperboard/result.preview.png" width="340" alt="Clean clapperboard with smooth edges"> |
+| <img src="clapperboard/input.png" width="340" alt="Tiny blurred clapperboard icon"> | <img src="clapperboard/result.preview.png" width="340" alt="Clean clapperboard with smooth edges"> |
 
-Small images are enlarged before tracing and edges are smoothed, so the result scales cleanly. unpixel cannot invent what the file does not contain: the large shapes are clean, but labels of a few pixels become blobs, and the white stripes at the top reach the outside, so they become transparent.
+Small images are enlarged before tracing and edges are smoothed, so the result scales cleanly. unpixel cannot invent what the file does not contain: the large shapes are clean, and the soft shading becomes two flat tones, but labels of a few pixels become blobs, and the white stripes at the top reach the outside, so they become transparent.
 
 **Check.** Compare the close-ups in the report. Consider retyping small text over the result in a design program.
 
@@ -94,7 +117,7 @@ unpixel france-map/input.png --colors '#F26A21,#0B7A3B,#7A0019,#7F77E8,#101010,#
 
 | Input | Colors detected | Your colors |
 |---|---|---|
-| <img src="../examples/france-map/input.png" width="260" alt="Map of France with colored regions"> | <img src="../examples/france-map/result.preview.png" width="260" alt="Same map with its original colors"> | <img src="../examples/france-map/brand.preview.png" width="260" alt="Same map with the brand colors"> |
+| <img src="france-map/input.png" width="260" alt="Map of France with colored regions"> | <img src="france-map/result.preview.png" width="260" alt="Same map with its original colors"> | <img src="france-map/brand.preview.png" width="260" alt="Same map with the brand colors"> |
 
 | Detected | `#FF7D41` | `#007D00` | `#790000` | `#867DFF` | `#000000` | `#0000FF` |
 |---|---|---|---|---|---|---|
@@ -114,7 +137,7 @@ unpixel poster/input.jpg --background keep -o poster/result.svg
 
 | Input | Output: eight flat tones |
 |---|---|
-| <img src="../examples/poster/input.jpg" width="340" alt="See America poster from the 1930s"> | <img src="../examples/poster/result.preview.png" width="340" alt="Same poster in eight flat tones"> |
+| <img src="poster/input.jpg" width="340" alt="See America poster from the 1930s"> | <img src="poster/result.preview.png" width="340" alt="Same poster in eight flat tones"> |
 
 Without the flag, unpixel notices that the border is not one uniform color, removes nothing and warns you. Use `--background keep` to say that this is what you want.
 
@@ -125,17 +148,17 @@ Without the flag, unpixel notices that the border is not one uniform color, remo
 **Situation.** Each color will be cut from vinyl or printed as its own screen, so a color must not continue underneath another.
 
 ```sh
-unpixel airmail/input.jpg --background keep --colors 4 --layers cutout -o airmail/cutout.svg
+unpixel airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' --layers cutout -o airmail/cutout.svg
 python plates.py airmail/cutout.svg airmail/plates.png
 ```
 
 | Input | The four colors, each one alone |
 |---|---|
-| <img src="../examples/airmail/input.jpg" width="240" alt="Air Mail poster from the 1920s"> | <img src="../examples/airmail/plates.png" width="620" alt="Four plates: navy background with the shapes cut out, red arrows, orange lettering, cream lettering"> |
+| <img src="airmail/input.jpg" width="240" alt="Air Mail poster from the 1920s"> | <img src="airmail/plates.png" width="620" alt="Four plates: navy background with the shapes cut out, red arrows, orange lettering, cream lettering"> |
 
-Each color appears only where it is visible: on the navy plate, every other shape is a hole. Each `<g id="color-N">` group in the SVG can be selected and sent separately, and [`plates.py`](../examples/plates.py) draws them like this.
+Each color appears only where it is visible: on the navy plate, every other shape is a hole. Each `<g id="color-N">` group in the SVG can be selected and sent separately, and [`plates.py`](plates.py) draws them like this.
 
-**Check.** Cutout layers leave tiny gaps where colors meet, because each shape is curved separately. Here they add up to 0.06% of the image, and unpixel warns about them. Aged print also leaves specks: see the small marks on the plates, and the red in the "O", where the old paper is worn. Clean those up by hand before production, and add the trapping your print shop requires. For print or screen use, prefer the default, `stacked`.
+**Check.** Cutout layers leave tiny gaps where colors meet, because each shape is curved separately. Here they add up to 0.08% of the image, and unpixel warns about them. Aged print also leaves marks: the shadow on the left turns part of the "O" red, and faint halos of one color show on the others. Clean those up by hand before production, and add the trapping your print shop requires. For print or screen use, prefer the default, `stacked`.
 
 ## 7. Reduce the number of colors
 
@@ -145,16 +168,23 @@ Each color appears only where it is visible: on the navy plate, every other shap
 unpixel airmail/input.jpg --background keep -o airmail/result.svg
 # unpixel: error: image not suitable for flat-color tracing: 17 colors found; ...
 # exit code 3
-unpixel airmail/input.jpg --background keep --colors 4 -o airmail/four-colors.svg
+unpixel airmail/input.jpg --background keep --colors 6 -o airmail/six-colors.svg
+unpixel airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' -o airmail/four-colors.svg
+unpixel airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA,#D9562B' -o airmail/shaded-orange.svg
 ```
 
-| Input | Output: four colors |
-|---|---|
-| <img src="../examples/airmail/input.jpg" width="340" alt="Aged Air Mail poster with stains and uneven inks"> | <img src="../examples/airmail/four-colors.preview.png" width="340" alt="Same poster in four flat colors, with the stains gone"> |
+| Input | `--colors 6` | Four named colors | Five, adding the shaded orange |
+|---|---|---|---|
+| <img src="airmail/input.jpg" width="200" alt="Aged Air Mail poster with a shadow on the left"> | <img src="airmail/six-colors.preview.png" width="200" alt="Six colors, with the blotchy background and the shadow still present"> | <img src="airmail/four-colors.preview.png" width="200" alt="Four colors, with a flat background. The O has a red patch"> | <img src="airmail/shaded-orange.preview.png" width="200" alt="Five colors. Overnight is one even orange"> |
 
-Paper aging makes unpixel see 17 colors, so it stops by default. With `--colors 4`, the closest colors merge until four remain. The background does not count, and the stains go with the merged tones.
+Paper aging makes unpixel see 17 colors, so it stops by default. There are two ways to reduce them:
 
-**Check.** Merging can make two neighboring areas the same color, losing the boundary between them. If that happens, name the colors yourself as in case 4.
+- **A number** merges the closest colors until that many remain. It is quick, but it follows color distance and not meaning: here it keeps two blues and the shadow.
+- **Named colors** give you control, and each detected color becomes the closest one you list. This is the better choice for aged prints.
+
+The shadow on the left of this poster darkens the orange until it is closer to red, which is the red patch in the "O". Adding that darker orange as a fifth color fixes it. To end with one orange, edit that group's `fill` in the SVG. A flat scan with even lighting avoids the problem altogether.
+
+**Check.** Merging can make two neighboring areas the same color, losing the boundary between them.
 
 ## 8. Fix lost detail or jagged edges
 
@@ -168,7 +198,7 @@ unpixel ornament/input.png --detail high -o ornament/high.svg
 
 From left to right: input, `low`, `medium` and `high`, enlarged 3×.
 
-<img src="../examples/ornament/comparison.png" alt="The same ornament at four levels. Low gives bolder, simpler shapes. High keeps the most small detail">
+<img src="ornament/comparison.png" alt="The same ornament at four levels. Low gives bolder, simpler shapes. High keeps the most small detail">
 
 `low` gives calmer, bolder shapes and drops small marks: see the wing and the ribbon. `high` keeps more of the fine hatching and the face, and it also keeps more wobble. Here, the black layer of the whole ornament goes from 155 shapes in `low` to 293 in `medium` and 332 in `high`.
 
@@ -187,7 +217,7 @@ unpixel shaded-painting/input.png --colors 6 -o shaded-painting/forced.svg
 
 | Input: refused by default | Forced with `--colors 6` |
 |---|---|
-| <img src="../examples/shaded-painting/input.png" width="340" alt="Painted dinosaur with soft shading"> | <img src="../examples/shaded-painting/forced.preview.png" width="340" alt="Same dinosaur in six flat colors, like a screen print"> |
+| <img src="shaded-painting/input.png" width="340" alt="Painted dinosaur with soft shading"> | <img src="shaded-painting/forced.preview.png" width="340" alt="Same dinosaur in six flat colors, like a screen print"> |
 
 unpixel stops instead of silently flattening the shading. Forcing a reduced palette works, and it can look good, but it is a stylized poster version and not a faithful copy: the soft skin shading is gone. If you need a faithful copy, keep the image as raster.
 
@@ -204,7 +234,7 @@ unpixel family/input.png --also-transparent '#F8F6F5' --colors '#F2F2F2' --previ
 
 | Input | On the real surface: barely visible | Recolored |
 |---|---|---|
-| <img src="../examples/family/input.png" width="260" alt="Family is everything, black lettering"> | <img src="../examples/family/on-dark.preview.png" width="260" alt="Black lettering nearly invisible on dark grey"> | <img src="../examples/family/light-on-dark.preview.png" width="260" alt="Light lettering clearly readable on dark grey"> |
+| <img src="family/input.png" width="260" alt="Family is everything, black lettering"> | <img src="family/on-dark.preview.png" width="260" alt="Black lettering nearly invisible on dark grey"> | <img src="family/light-on-dark.preview.png" width="260" alt="Light lettering clearly readable on dark grey"> |
 
 The first command shows the design on that surface. The second turns it light: with one value in `--colors`, every color becomes that value. With several colors, list one replacement per color, or edit each group's `fill` in the SVG. `--preview-background` never changes the SVG.
 
@@ -224,9 +254,9 @@ unpixel watermark/strong.png -o watermark/strong.svg
 
 | Overlay | Input | Output | What happened |
 |---|---|---|---|
-| Faint | <img src="../examples/watermark/faint.png" width="280" alt="Map with a faint SAMPLE overlay"> | <img src="../examples/watermark/faint.preview.png" width="280" alt="Map with no visible overlay"> | Falls within the existing colors, so it vanishes. |
-| Medium | <img src="../examples/watermark/medium.png" width="280" alt="Map with a visible SAMPLE overlay"> | <img src="../examples/watermark/medium.preview.png" width="280" alt="Map with fragments of the overlay left in the orange areas"> | Stays in fragments, and adds a false seventh color. |
-| Strong | <img src="../examples/watermark/strong.png" width="280" alt="Map with a dark SAMPLE overlay"> | <img src="../examples/watermark/strong.preview.png" width="280" alt="Map with the whole overlay traced as shapes"> | Stays whole, traced as shapes, with twelve colors in total. |
+| Faint | <img src="watermark/faint.png" width="280" alt="Map with a faint SAMPLE overlay"> | <img src="watermark/faint.preview.png" width="280" alt="Map with no visible overlay"> | Falls within the existing colors, so it vanishes. |
+| Medium | <img src="watermark/medium.png" width="280" alt="Map with a visible SAMPLE overlay"> | <img src="watermark/medium.preview.png" width="280" alt="Map with fragments of the overlay left in the orange areas"> | Stays in fragments, and adds a false seventh color. |
+| Strong | <img src="watermark/strong.png" width="280" alt="Map with a dark SAMPLE overlay"> | <img src="watermark/strong.preview.png" width="280" alt="Map with the whole overlay traced as shapes"> | Stays whole, traced as shapes, with twelve colors in total. |
 
 Naming the real palette removes the false colors, though not the shape of the overlay where it is strong enough to cross into another color:
 
@@ -234,7 +264,7 @@ Naming the real palette removes the false colors, though not the shape of the ov
 unpixel watermark/medium.png --colors '#FF7D41,#007D00,#790000,#867DFF,#000000,#0000FF' -o watermark/medium-palette.svg
 ```
 
-<img src="../examples/watermark/medium-palette.preview.png" width="340" alt="Map with the original six colors">
+<img src="watermark/medium-palette.preview.png" width="340" alt="Map with the original six colors">
 
 unpixel gives no warning about any of this, because it cannot tell a watermark from artwork.
 

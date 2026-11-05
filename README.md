@@ -8,15 +8,15 @@ unpixel artwork.png
 
 The command writes `artwork.svg`, plus a report and a preview so you can check the result by eye. It detects the colors and the background by itself, and it works on upscaled or slightly blurry sources.
 
-| Original | Result, shown on a check color | Notes |
-|---|---|---|
-| <img src="examples/family/input.png" width="260" alt="Black lettering, original"> | <img src="examples/family/knockout.preview.png" width="260" alt="Black lettering, vectorized"> | Lettering with the white inside it removed as well, using `--also-transparent '#F8F6F5'`. |
-| <img src="examples/stamp/input.jpg" width="260" alt="Postage stamp, original"> | <img src="examples/stamp/result.preview.png" width="260" alt="Postage stamp, vectorized"> | Colors detected automatically. Only the outside is removed: the pale frame stays opaque. |
-| <img src="examples/airmail/input.jpg" width="260" alt="Air mail poster, original"> | <img src="examples/airmail/four-colors.preview.png" width="260" alt="Air mail poster, vectorized"> | Aged poster reduced to four flat inks, with `--colors 4 --background keep`. |
+These results use no options at all:
 
-Every use case has its own images and the exact command that made them. Example images are public domain or CC0: see [examples/CREDITS.md](examples/CREDITS.md).
+| Original | Result, shown on a check color |
+|---|---|
+| <img src="examples/coffee/input.png" width="300" alt="Black lettering, original"> | <img src="examples/coffee/result.preview.png" width="300" alt="Black lettering, vectorized with no background"> |
+| <img src="examples/car/input.png" width="300" alt="Car with a Christmas tree, original"> | <img src="examples/car/result.preview.png" width="300" alt="Car with a Christmas tree, vectorized with no background"> |
+| <img src="examples/snow-globe/input.png" width="300" alt="Snow globe, original"> | <img src="examples/snow-globe/result.preview.png" width="300" alt="Snow globe, vectorized with no background"> |
 
-Use cases in detail: [English](docs/use-cases.en.md) · [Español](docs/use-cases.es.md)
+**[All examples and use cases](examples/README.md)**, each with its input, output and exact command · [En español](examples/README.es.md)
 
 ## Install
 
@@ -159,9 +159,9 @@ This section is everything an AI agent needs. Follow it in order.
 
 - **It is for flat color.** Photos and shaded paintings are refused with exit code 3. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
 - **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard example. Windows of a few pixels come out as rounded dots. Use the largest source you have.
-- **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. Light areas that reach the outside through a gap in the outline become transparent: if that is wrong, name the outside color, or use `--background keep`.
+- **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. A pale area that touches the outside with no outline disappears with the background, such as [the beard in this example](examples/README.md#1-remove-the-background-and-keep-everything-else). No option separates them. Use `--background keep` for an opaque copy.
 - **It does not judge contrast.** A dark logo stays dark, even if it is going on a dark surface. Check with `--preview-background`, and recolor with `--colors` if needed.
-- **It is not a watermark remover.** Faint overlays tend to vanish, stronger ones stay, in pieces or whole, with no warning. See [the use case](docs/use-cases.en.md#11-artwork-with-a-watermark).
+- **It is not a watermark remover.** Faint overlays tend to vanish, stronger ones stay, in pieces or whole, with no warning. See [the use case](examples/README.md#11-artwork-with-a-watermark).
 - **Cutout layers can leave tiny gaps** where colors meet, because each shape is curved separately. Expect a warning.
 - **Output is filled shapes.** Text stays as outlines rather than editable text, and lines are not strokes.
 - **Memory and time depend on the working size.** Images are enlarged up to 4× towards a 6400 px long side, so memory is not proportional to the source size. Measured on an Apple Silicon Mac: 588 × 550 px took 9 seconds and 1.2 GB, 3206 × 4075 px took 86 seconds and 6.7 GB, and 7945 × 3973 px took 92 seconds and 6.6 GB. Allow at least 8 GB of free memory for anything over about 1300 px.
@@ -169,7 +169,7 @@ This section is everything an AI agent needs. Follow it in order.
 ## How it works
 
 1. Work at a fixed artwork resolution, enlarging small images, so the same settings suit a small icon and a large poster.
-2. Find the dominant colors among pixels away from any edge. Close colors, such as white and cream, form one group.
+2. Find the dominant colors among pixels away from any edge. Close colors, such as white and cream, form one group. Then look for colors that only thin strokes carry: the center of a stroke that no mix of the known colors can explain.
 3. Sharpen, to recover thin lines in soft sources, and classify each pixel in Lab color space. This keeps a navy-to-white edge from being mistaken for red.
 4. Find connected regions, and give each its own color. This separates white from cream without leaving a false ring around dark outlines.
 5. Mark regions connected to the border and matching the dominant border color as background.

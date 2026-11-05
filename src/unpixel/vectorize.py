@@ -66,6 +66,8 @@ def build_svg(labels, colors, width, height, layers_mode, speck_area, title) -> 
             core = ni.binary_erosion(above | mask, iterations=OVERLAP_MARGIN) & above
             mask = mask | (ni.binary_dilation(mask, iterations=OVERLAP) & core)
         paths = _trace_layer(mask, speck_area, scale, decimals)
+        if not paths:
+            continue
         name = f"color-{position + 1}"
         color = to_hex(colors[cls])
         body = "".join(f'<path d="{d}"/>\n' for d in paths)

@@ -11,7 +11,7 @@ All example inputs come from Wikimedia Commons and were marked as public domain 
 
 ## From rawpixel, found through Openverse
 
-Listed as CC0 by [Openverse](https://openverse.org) on 2026-11-05. The source pages refused automated access, so that listing is what was checked, not the pages themselves. Each input is the 1024 px image from rawpixel, converted from WebP.
+Listed as CC0 by [Openverse](https://openverse.org) on 2026-11-05. The source pages refused automated access, so that listing is what was checked, not the pages themselves. Each input is the size rawpixel served, up to 1300 px, converted from WebP. Transparent pixels were flattened onto white.
 
 | Example | Source page | Openverse title |
 |---|---|---|
@@ -20,6 +20,11 @@ Listed as CC0 by [Openverse](https://openverse.org) on 2026-11-05. The source pa
 | `family` | [rawpixel 6819242](https://www.rawpixel.com/image/6819242/vector-public-domain-black-family) | Family is everything clipart, text |
 | `airmail` | [rawpixel 8849783](https://www.rawpixel.com/image/8849783/airmail-poster-advertising-the-ten-cent-rate) | Airmail poster advertising ten-cent rate |
 | `ornament` | [rawpixel 6553112](https://www.rawpixel.com/image/6553112/vector-frame-vintage-public-domain) | Ornamental badge clipart, vintage frame |
+| `coffee` | [rawpixel 10093059](https://www.rawpixel.com/image/10093059/image-people-cartoon-logo) | Coffee quote illustration |
+| `car` | [rawpixel 6285760](https://www.rawpixel.com/image/6285760/image-xmas-public-domain-pink) | Christmas tree car clipart illustration |
+| `award` | [rawpixel 7619692](https://www.rawpixel.com/image/7619692/image-heart-pattern-logo) | Ribbon award clipart, illustration |
+| `snow-globe` | [rawpixel 10191687](https://www.rawpixel.com/image/10191687/png-christmas-cartoon) | Christmas snow globe png clipart |
+| `sleigh` | [rawpixel 6762966](https://www.rawpixel.com/image/6762966/image-christmas-public-domain-illustrations) | Santa's sleigh, Christmas clipart |
 
 ## Made for this project
 
