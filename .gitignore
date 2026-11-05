@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.DS_Store
+# Local validation images and their outputs never belong in the repository.
+/local/
+
+# Reports embed image crops and are easy to regenerate.
+examples/**/*.report.html

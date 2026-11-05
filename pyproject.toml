@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flattrace"
+version = "0.1.0"
+description = "Turn flat-color raster artwork into clean, layered SVG with a transparent background."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-2.0-or-later"
+license-files = ["LICENSE"]
+dependencies = ["numpy>=1.26", "pillow>=10", "scipy>=1.11", "potracer>=0.0.4"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+flattrace = "flattrace.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flattrace"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
