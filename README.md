@@ -10,11 +10,11 @@ The command writes `artwork.svg`, plus a report and a preview so you can check t
 
 | Original | Result, shown on a check color | Notes |
 |---|---|---|
-| <img src="examples/france-map/input.png" width="260" alt="Map of France, original"> | <img src="examples/france-map/result.preview.png" width="260" alt="Map of France, vectorized"> | 588 px source. Six exact colors. Background removed. |
-| <img src="examples/poster/input.jpg" width="260" alt="See America poster, original"> | <img src="examples/poster/result.preview.png" width="260" alt="See America poster, vectorized"> | Screen-printed poster reduced to eight flat tones, kept opaque with `--background keep`. |
-| <img src="examples/clapperboard/input.png" width="260" alt="Clapperboard, original"> | <img src="examples/clapperboard/knockout.preview.png" width="260" alt="Clapperboard, vectorized"> | 113 px source. White areas removed with `--also-transparent '#FDFDFD'`. All commands are in [examples/build.sh](examples/build.sh). |
+| <img src="examples/family/input.png" width="260" alt="Black lettering, original"> | <img src="examples/family/knockout.preview.png" width="260" alt="Black lettering, vectorized"> | Lettering with the white inside it removed as well, using `--also-transparent '#F8F6F5'`. |
+| <img src="examples/stamp/input.jpg" width="260" alt="Postage stamp, original"> | <img src="examples/stamp/result.preview.png" width="260" alt="Postage stamp, vectorized"> | Colors detected automatically. Only the outside is removed: the pale frame stays opaque. |
+| <img src="examples/airmail/input.jpg" width="260" alt="Air mail poster, original"> | <img src="examples/airmail/four-colors.preview.png" width="260" alt="Air mail poster, vectorized"> | Aged poster reduced to four flat inks, with `--colors 4 --background keep`. |
 
-Example images are in the public domain. See [examples/CREDITS.md](examples/CREDITS.md).
+Every use case has its own images and the exact command that made them. Example images are public domain or CC0: see [examples/CREDITS.md](examples/CREDITS.md).
 
 Use cases in detail: [English](docs/use-cases.en.md) · [Español](docs/use-cases.es.md)
 
@@ -88,7 +88,7 @@ The SVG's `width` and `height` match the source image in pixels, but it scales t
 |---|---|---|
 | `0` | SVG written. There may be warnings | Read the warnings and check the preview |
 | `2` | Bad arguments, unreadable input, output already exists, or `--also-transparent` would remove every color | Fix the command, or add `--force` if overwriting is intended |
-| `3` | Image unsuitable: a photo, or heavy shading | Do not retry with other flags, unless a reduced palette is what is wanted (`--colors N`) |
+| `3` | Image unsuitable: a photo, heavy shading, or aged print with too many tones (over 16 colors) | Do not retry with other flags, unless a reduced palette is what is wanted (`--colors N`). This often works well, so judge the preview |
 
 ## Using unpixel from an AI assistant
 
@@ -158,9 +158,11 @@ This section is everything an AI agent needs. Follow it in order.
 ## Limits
 
 - **It is for flat color.** Photos and shaded paintings are refused with exit code 3. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
-- **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard. Windows of a few pixels come out as rounded dots. Use the largest source you have.
+- **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard example. Windows of a few pixels come out as rounded dots. Use the largest source you have.
 - **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. Light areas that reach the outside through a gap in the outline become transparent: if that is wrong, name the outside color, or use `--background keep`.
 - **It does not judge contrast.** A dark logo stays dark, even if it is going on a dark surface. Check with `--preview-background`, and recolor with `--colors` if needed.
+- **It is not a watermark remover.** Faint overlays tend to vanish, stronger ones stay, in pieces or whole, with no warning. See [the use case](docs/use-cases.en.md#11-artwork-with-a-watermark).
+- **Cutout layers can leave tiny gaps** where colors meet, because each shape is curved separately. Expect a warning.
 - **Output is filled shapes.** Text stays as outlines rather than editable text, and lines are not strokes.
 - **Memory and time depend on the working size.** Images are enlarged up to 4× towards a 6400 px long side, so memory is not proportional to the source size. Measured on an Apple Silicon Mac: 588 × 550 px took 9 seconds and 1.2 GB, 3206 × 4075 px took 86 seconds and 6.7 GB, and 7945 × 3973 px took 92 seconds and 6.6 GB. Allow at least 8 GB of free memory for anything over about 1300 px.
 

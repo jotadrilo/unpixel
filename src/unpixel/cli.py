@@ -145,7 +145,14 @@ def main(argv: list[str] | None = None) -> int:
         write_preview(svg, width, height, background, preview_path)
         write_report(source, svg, seg, metrics, hotspots, layers, background, args.input.name, report_path)
     if metrics["opaque_pixels_in_background"] or metrics["transparent_pixels_in_artwork"]:
-        seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
+        if options.layers == "cutout" and not metrics["opaque_pixels_in_background"]:
+            seg.warnings.append(
+                f"Cutout layers leave tiny gaps where colors meet ({metrics['transparent_percent']}% of the image is "
+                "see-through), because each shape is curved separately. Use the default, stacked, unless colors "
+                "must not overlap."
+            )
+        else:
+            seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
 
     result = {
         "status": "ok",
