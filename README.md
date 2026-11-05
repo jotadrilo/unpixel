@@ -47,8 +47,6 @@ uv venv && uv pip install -e '.[dev]'
 
 Check it works with `flattrace --version`.
 
-If `git` reports `Repository not found`, the repository is private and your account needs access to it. With the GitHub CLI, run `gh auth login` and then `gh auth setup-git`, and try again.
-
 ## Usage
 
 ```
