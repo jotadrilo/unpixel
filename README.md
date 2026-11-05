@@ -67,8 +67,15 @@ unpixel INPUT [options]
 | `--force` | | off | Overwrite existing output files. Without it, unpixel refuses to overwrite and changes nothing. |
 | `--no-report` | | off | You want only the SVG. |
 | `--json` | | off | A program or AI reads the result. |
+| `--color WHEN` | `auto`, `always`, `never` | `auto` | Color in the terminal. `auto` uses it on a terminal only, follows `NO_COLOR` and `FORCE_COLOR`, and `--json` output never contains color. |
 
 Always quote colors: an unquoted `#` starts a comment in many shells.
+
+### What you see
+
+On a terminal, unpixel shows its progress, a miniature of the result with transparency as a checkerboard, each color on itself with its share of the image, and any warning with the exact command to run next. Piped output has no color codes, and `--json` prints only JSON.
+
+<img src="examples/terminal.png" width="720" alt="Terminal output: progress steps, a miniature of a pink car on a checkerboard, ten color swatches with bars, the removed background, output files, and a warning with a command to run">
 
 ### What is written
 

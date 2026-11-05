@@ -1,4 +1,6 @@
+import io
 import json
+import shlex
 
 import numpy as np
 import pytest
@@ -7,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from unpixel.cli import main
 from unpixel.color import delta_e, parse_hex, srgb_to_lab
 from unpixel.render import render_svg
+from unpixel.ui import Style, stage
 
 from conftest import CREAM, NAVY, RED
 
@@ -229,3 +232,74 @@ def test_tiny_color_does_not_take_a_slot_from_a_real_one(save, capsys):
     assert len(result["layers"]) == 4
     for real in ((12, 18, 50), (204, 52, 7), (245, 149, 98), (253, 237, 170)):
         assert has_color(result, real)
+
+
+def test_piped_output_has_no_escape_codes(save, stamp, capsys, monkeypatch):
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    code = main([str(save(stamp))])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "\x1b[" not in captured.out + captured.err
+    assert "SVG" in captured.out and "Background" in captured.out
+
+
+def test_color_always_shows_swatches_and_a_thumbnail(save, stamp, capsys, monkeypatch):
+    monkeypatch.setenv("COLORTERM", "truecolor")
+    code = main([str(save(stamp)), "--color", "always"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "\x1b[48;2;" in out  # a real color behind its name
+    assert "\u2580" in out  # the half-block miniature
+
+
+def test_no_color_and_force_color_are_respected(save, stamp, capsys, monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    main([str(save(stamp))])
+    assert "\x1b[" not in capsys.readouterr().out
+    monkeypatch.delenv("NO_COLOR")
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    main([str(save(stamp, "b.png"))])
+    assert "\x1b[" in capsys.readouterr().out
+
+
+def test_json_stays_clean_with_color_forced(save, stamp, capsys):
+    code = main([str(save(stamp)), "--json", "--color", "always"])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "\x1b[" not in captured.out
+    assert json.loads(captured.out)["status"] == "ok"
+
+
+def test_warning_offers_a_complete_command_that_works(save, stamp, capsys, monkeypatch):
+    path = save(stamp)
+    main([str(path)])
+    line = next(l for l in capsys.readouterr().err.splitlines() if "Run:" in l)
+    command = shlex.split(line.split("Run:", 1)[1])
+    assert command[0] == "unpixel" and "--also-transparent" in command and "--force" in command
+    assert main(command[1:]) == 0
+    assert "--also-transparent" not in capsys.readouterr().err
+
+
+def test_failed_stage_ends_its_line_before_the_error():
+    stream = io.StringIO()
+    with pytest.raises(ValueError):
+        with stage(Style(stream, "never"), "Finding colors", active=True):
+            raise ValueError("boom")
+    assert stream.getvalue().endswith("Finding colors\n\n")
+
+
+def test_thumbnail_is_cropped_to_the_artwork(monkeypatch):
+    monkeypatch.setenv("COLORTERM", "truecolor")
+    rgba = np.zeros((1000, 1000, 4), dtype=np.uint8)
+    rgba[450:550, 300:700] = (10, 20, 30, 255)
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    lines = Style(stream, "always").thumbnail(rgba)
+    assert len(lines) < 12  # a wide, short drawing fills the width, not a square of empty margin
+    assert len(lines[0].split("\u2580")) - 1 >= 60
+
+
+def test_grey_uses_the_grey_ramp_without_truecolor(monkeypatch):
+    monkeypatch.delenv("COLORTERM", raising=False)
+    style = Style(io.StringIO(), "always")
+    assert style._channel((150, 150, 150), 38).startswith("38;5;2")
+    assert int(style._channel((150, 150, 150), 38).split(";")[2]) >= 232

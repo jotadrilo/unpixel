@@ -76,6 +76,7 @@ unpixel keeps enclosed areas that look like the background opaque, and tells you
 ```
 Warning: Interior areas colored #F8F6F5 look like the background but stayed opaque.
 To make them transparent too, add --also-transparent '#F8F6F5'.
+  Run: unpixel family/input.png -o family/result.svg --also-transparent '#F8F6F5' --force
 ```
 
 ```sh

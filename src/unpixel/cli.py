@@ -6,6 +6,7 @@ import argparse
 import html
 import json
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from . import __version__
 from .color import parse_hex, to_hex
 from .report import contrast_background, verify, write_preview, write_report
 from .segment import InvalidRequest, UnsuitableImage, segment
+from .ui import Style, print_error, print_header, print_summary, print_warnings, stage
 from .vectorize import build_svg
 
 Image.MAX_IMAGE_PIXELS = None
@@ -64,6 +66,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true", help="overwrite existing output files")
     parser.add_argument("--no-report", action="store_true", help="write only the SVG, without report or preview")
     parser.add_argument("--json", action="store_true", help="print a machine-readable result on stdout")
+    parser.add_argument("--color", choices=["auto", "always", "never"], default="auto",
+                        help="color in terminal output. 'auto' uses it on a terminal, unless NO_COLOR is set. Default: auto")
     parser.add_argument("--version", action="version", version=f"unpixel {__version__}")
     return parser
 
@@ -92,13 +96,15 @@ def _options(args, parser) -> Options:
 def _fail(args, code: int, message: str) -> int:
     if args.json:
         print(json.dumps({"status": "error", "exit_code": code, "error": message}, indent=2))
-    print(f"unpixel: error: {message}", file=sys.stderr)
+    print_error(Style(sys.stderr, args.color), message)
     return code
 
 
 def main(argv: list[str] | None = None) -> int:
+    started = time.monotonic()
     parser = build_parser()
     args = parser.parse_args(argv)
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
     options = _options(args, parser)
 
     svg_path = args.output or args.input.with_suffix(".svg")
@@ -127,23 +133,31 @@ def main(argv: list[str] | None = None) -> int:
     source = np.asarray(flattened.convert("RGB"))
     height, width = source.shape[:2]
 
+    out, err = Style(sys.stdout, args.color), Style(sys.stderr, args.color)
+    show_progress = not args.json and bool(getattr(sys.stderr, "isatty", lambda: False)())
+    if not args.json:
+        print_header(out, args.input.name, width, height, spaced=show_progress)
     try:
-        seg = segment(source, options)
+        with stage(err, "Finding colors and background", show_progress):
+            seg = segment(source, options)
     except UnsuitableImage as error:
         return _fail(args, 3, f"image not suitable for flat-color tracing: {error}")
     except InvalidRequest as error:
         return _fail(args, 2, str(error))
 
-    svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,
-                            html.escape(args.input.stem))
+    with stage(err, "Tracing shapes", show_progress):
+        svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,
+                                html.escape(args.input.stem))
     svg_path.parent.mkdir(parents=True, exist_ok=True)
     svg_path.write_text(svg, encoding="utf-8")
 
-    metrics, _, hotspots = verify(svg, seg, width, height)
+    with stage(err, "Checking the result", show_progress):
+        metrics, rendered, hotspots = verify(svg, seg, width, height)
     background = preview_color or contrast_background(seg.colors)
     if not args.no_report:
-        write_preview(svg, width, height, background, preview_path)
-        write_report(source, svg, seg, metrics, hotspots, layers, background, args.input.name, report_path)
+        with stage(err, "Writing preview and report", show_progress):
+            write_preview(svg, width, height, background, preview_path)
+            write_report(source, svg, seg, metrics, hotspots, layers, background, args.input.name, report_path)
     if metrics["opaque_pixels_in_background"] or metrics["transparent_pixels_in_artwork"]:
         if options.layers == "cutout" and not metrics["opaque_pixels_in_background"]:
             seg.warnings.append(
@@ -171,14 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(result, indent=2))
     else:
-        print(f"SVG: {svg_path}")
-        if not args.no_report:
-            print(f"Report: {report_path}\nPreview: {preview_path}")
-        for layer in layers:
-            print(f"  {layer['layer']}: {layer['color']}, {layer['shapes']} shapes, {layer['area_percent']}%")
-        print(f"Background removed: {seg.background or 'none'} ({metrics['transparent_percent']}% transparent)")
-        for warning in seg.warnings:
-            print(f"Warning: {warning}", file=sys.stderr)
+        print_summary(out, result, rendered, time.monotonic() - started)
+        print_warnings(err, seg.warnings, raw_arguments)
     return 0
 
 
