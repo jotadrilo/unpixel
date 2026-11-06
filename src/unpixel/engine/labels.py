@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from scipy import ndimage as ni
+from scipy.spatial import cKDTree
 
 from ..color import srgb_to_lab
 
@@ -560,6 +561,54 @@ def dissolve_fringes(
     out = label.copy()
     out[ys, xs] = np.where(da <= db, ra, rb)
     return out, mask
+
+
+def dissolve_speckle(label, palette_all, max_area: int, max_de: float, radius: float, crowd: int) -> tuple[np.ndarray, int]:
+    """Islands of low contrast that come in crowds are texture: speckled rock, dots inside a shadow.
+
+    A crumb or a star stands out strongly or stands alone, so it stays. An island here has one neighbor class.
+    """
+    classes = len(palette_all)
+    regions, total = _regions(label, classes)
+    if total == 0:
+        return label, 0
+    area = np.bincount(regions.ravel(), minlength=total + 1)
+    region_class = np.zeros(total + 1, dtype=np.int32)
+    region_class[regions.ravel()] = label.ravel()
+    a = np.concatenate([regions[:, :-1].ravel(), regions[:-1, :].ravel()])
+    b = np.concatenate([regions[:, 1:].ravel(), regions[1:, :].ravel()])
+    hit = a != b
+    froms, tos = np.concatenate([a[hit], b[hit]]), np.concatenate([b[hit], a[hit]])
+    small = area <= max_area
+    small[0] = False
+    keep = small[froms]
+    pair = np.unique(froms[keep].astype(np.int64) * (classes + 1) + region_class[tos[keep]])
+    owner, neighbor = pair // (classes + 1), pair % (classes + 1)
+    ids, counts = np.unique(owner, return_counts=True)
+    single = ids[counts == 1]
+    if single.size == 0:
+        return label, 0
+    only = np.full(total + 1, -1, dtype=np.int32)
+    is_single = np.isin(owner, single)
+    only[owner[is_single]] = neighbor[is_single]
+    d = np.sqrt(((palette_all[region_class[single]] - palette_all[only[single]]) ** 2).sum(-1))
+    # The background is never a surround here: what floats on it is detail by definition.
+    candidates = single[(d < max_de) & (only[single] != classes - 1)]
+    if candidates.size < crowd + 1:
+        return label, 0
+    ys, xs = np.nonzero(np.isin(regions, candidates))
+    r = regions[ys, xs]
+    n = np.bincount(r, minlength=total + 1)
+    cx = np.bincount(r, xs, total + 1)[candidates] / n[candidates]
+    cy = np.bincount(r, ys, total + 1)[candidates] / n[candidates]
+    tree = cKDTree(np.stack([cx, cy], -1))
+    near = tree.query_ball_point(np.stack([cx, cy], -1), radius, return_length=True)
+    crowded = candidates[near > crowd]
+    if crowded.size == 0:
+        return label, 0
+    mapping = region_class.copy()
+    mapping[crowded] = only[crowded]
+    return mapping[regions].astype(label.dtype), int(crowded.size)
 
 
 def settle_colors(palette: np.ndarray, label: np.ndarray, lab: np.ndarray, solid: np.ndarray) -> np.ndarray:

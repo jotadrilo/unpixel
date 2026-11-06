@@ -23,6 +23,10 @@ SMALL_LOOP = 30.0  # source pixels of perimeter
 SPECK_AREA = 12  # source pixels: smaller pieces are absorbed
 SPECK_KEEP_AREA = 4  # ... unless they stand out by SPECK_KEEP_DE, as a dark stitch does
 SPECK_KEEP_DE = 25.0
+SPECKLE_AREA = 40  # source pixels
+SPECKLE_DE = 32.0
+SPECKLE_RADIUS = 30.0  # source pixels
+SPECKLE_CROWD = 4  # this many other such islands within the radius
 FAINT_AREA = 60  # source pixels: a blotch this small and closer than FAINT_DE to a neighbor is texture
 FAINT_DE = 16.0
 
@@ -358,6 +362,13 @@ def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int 
         s2 = SCALE * SCALE
         fine = lab_mod.absorb_specks(fine, palette_all, SPECK_AREA * s2, SPECK_KEEP_AREA * s2, SPECK_KEEP_DE,
                                       faint_area=FAINT_AREA * s2, faint_de=FAINT_DE)
+        if bg_present:
+            classes_all = palette_all
+        else:
+            # With no background, its slot must not count as a surround, and nothing has that class.
+            classes_all = palette_all
+        fine, speckle = lab_mod.dissolve_speckle(fine, classes_all, SPECKLE_AREA * s2, SPECKLE_DE, SPECKLE_RADIUS * SCALE, SPECKLE_CROWD)
+        info["speckle_islands"] = speckle
     return fine, fine_lab, pal, background, palette_all, bg_present
 
 

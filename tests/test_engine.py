@@ -255,3 +255,18 @@ def test_labels_variant_runs_through_todays_tracer():
     ImageDraw.Draw(im).ellipse((60, 60, 240, 240), fill=(30, 30, 40))
     result = pipeline.run(soft(im), "labels")
     assert "<path" in result.svg
+
+
+def test_crowded_faint_dots_dissolve_and_strong_or_lone_marks_stay():
+    pal = np.array([[60.0, 10, 10], [50.0, 10, 10], [10.0, 0, 0], [99.0, 0, 0]], dtype=np.float32)
+    label = np.zeros((200, 400), dtype=np.int16)
+    for x in range(20, 140, 20):
+        label[50:54, x : x + 4] = 1  # a crowd of faint dots
+    for x in range(20, 140, 20):
+        label[150:154, x : x + 4] = 2  # a crowd of strong dots, as stitches
+    label[100:104, 350:354] = 1  # a lone faint dot
+    out, count = labels.dissolve_speckle(label, pal, 40, 32.0, 40.0, 4)
+    assert count == 6
+    assert (out[50:54, 20:24] == 0).all()
+    assert (out[150:154, 20:24] == 2).all()
+    assert (out[100:104, 350:354] == 1).all()
