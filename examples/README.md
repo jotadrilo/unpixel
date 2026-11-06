@@ -309,7 +309,7 @@ unpixel axolotl/input.png --colors 8 --outline edges --preview-background '#C9D2
 - **`lines`** keeps only the darkest color's shapes. It suits artwork that already has an outline, like this one. On artwork with none, the darkest color is a fill, and unpixel warns you.
 - **`edges`** draws a line wherever two colors meet, so it works on flat artwork with no outline. An existing outline has two sides, so it comes out as a double line, as it does here. Set the thickness with `--outline-width`, in source pixels.
 
-Both write one layer, in the darkest color. To change it, edit that group's `fill` in the SVG.
+Both write one layer, in black. Choose another color with `--outline-color '#RRGGBB'`.
 
 **Check.** Thin lines shown on a small preview can hide gaps. Open the report if the lines must be continuous, such as for a cutter.
 

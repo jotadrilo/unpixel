@@ -333,12 +333,12 @@ def test_open_with_no_report_is_a_usage_error(save, stamp):
     assert info.value.code == 2
 
 
-def test_outline_lines_keeps_only_the_darkest_color(save, ticket, capsys):
+def test_outline_lines_keeps_only_the_darkest_colors_shapes_in_black(save, ticket, capsys):
     code, result = run(capsys, save(ticket), "--outline", "lines")
     assert code == 0
     assert result["outline"] == "lines"
     assert len(result["layers"]) == 1
-    assert close(result["layers"][0]["color"], NAVY)
+    assert result["layers"][0]["color"] == "#000000"
     assert not has_color(result, RED)
     assert not has_color(result, CREAM)
     rgba = drawn(result)
@@ -354,7 +354,7 @@ def test_outline_edges_draws_a_line_where_flat_colors_meet(save, capsys):
     code, result = run(capsys, save(image), "--outline", "edges", "--outline-width", "4")
     assert code == 0
     assert len(result["layers"]) == 1
-    assert close(result["layers"][0]["color"], NAVY)
+    assert result["layers"][0]["color"] == "#000000"
     rgba = drawn(result)
     assert rgba[200, 200, 3] == 0  # inside a fill: empty
     assert rgba[200, 400, 3] == 0
@@ -374,4 +374,24 @@ def test_outline_lines_warns_when_the_darkest_color_is_a_fill(save, capsys):
 def test_outline_width_needs_edges(save, ticket):
     with pytest.raises(SystemExit) as stopped:
         main([str(save(ticket)), "--outline", "lines", "--outline-width", "3"])
+    assert stopped.value.code == 2
+
+
+@pytest.mark.parametrize("mode", ["lines", "edges"])
+def test_outline_color_sets_the_lines_color(save, ticket, capsys, mode):
+    code, result = run(capsys, save(ticket), "--outline", mode, "--outline-color", "#E6007E")
+    assert code == 0
+    assert [layer["color"] for layer in result["layers"]] == ["#E6007E"]
+    assert 'fill="#E6007E"' in open(result["svg"], encoding="utf-8").read()
+
+
+def test_outline_color_needs_outline(save, ticket):
+    with pytest.raises(SystemExit) as stopped:
+        main([str(save(ticket)), "--outline-color", "#E6007E"])
+    assert stopped.value.code == 2
+
+
+def test_outline_color_must_be_a_color(save, ticket):
+    with pytest.raises(SystemExit) as stopped:
+        main([str(save(ticket)), "--outline", "lines", "--outline-color", "pink"])
     assert stopped.value.code == 2

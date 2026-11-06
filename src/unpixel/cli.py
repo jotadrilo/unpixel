@@ -35,6 +35,7 @@ class Options:
     layers: str = "stacked"
     outline: str | None = None
     outline_width: float = 2.0
+    outline_color: tuple[int, int, int] = (0, 0, 0)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,11 +64,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--detail", choices=["low", "medium", "high"], default="medium",
                         help="'low' if edges look jagged, 'high' if thin lines or small shapes get lost. Default: medium")
     parser.add_argument("--outline", choices=["lines", "edges"], metavar="MODE",
-                        help="keep only lines, in the darkest color. 'lines' keeps that color's own shapes, for artwork "
+                        help="keep only lines. 'lines' keeps the darkest color's own shapes, for artwork "
                              "that already has outlines; 'edges' draws a line wherever two colors meet, for flat "
                              "artwork with none. Default: off")
     parser.add_argument("--outline-width", type=float, metavar="PIXELS",
                         help="line width for --outline edges, in source pixels. Default: 2")
+    parser.add_argument("--outline-color", metavar="#RRGGBB",
+                        help="line color for --outline. Default: #000000")
     parser.add_argument("--preview-background", metavar="#RRGGBB",
                         help="color to show the result on in the preview and report, such as the surface it will "
                              "go on. It is not added to the SVG. Default: a color contrasting with the artwork")
@@ -90,7 +93,11 @@ def _options(args, parser) -> Options:
         if args.outline_width <= 0:
             parser.error("--outline-width must be above 0")
         options.outline_width = args.outline_width
+    if args.outline_color is not None and not args.outline:
+        parser.error("--outline-color needs --outline")
     try:
+        if args.outline_color is not None:
+            options.outline_color = parse_hex(args.outline_color)
         if args.background not in ("auto", "keep"):
             options.background_rgb = parse_hex(args.background)
             options.background = "color"
@@ -164,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
         return _fail(args, 2, str(error))
 
     if options.outline:
-        seg = apply_outline(seg, options.outline, options.outline_width)
+        seg = apply_outline(seg, options.outline, options.outline_width, options.outline_color)
 
     with stage(err, "Tracing shapes", show_progress):
         svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,

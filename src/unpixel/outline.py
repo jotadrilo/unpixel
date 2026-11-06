@@ -1,4 +1,4 @@
-"""Reduce a segmentation to lines only: the artwork's own line color, or the edges between colors."""
+"""Reduce a segmentation to lines only: the darkest color's shapes, or the edges between colors."""
 
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ def _edges(labels: np.ndarray, radius: int) -> np.ndarray:
     return ni.binary_dilation(boundary, iterations=radius)
 
 
-def apply_outline(seg: Segmentation, mode: str, width: float) -> Segmentation:
-    """Return the segmentation holding one color, the darkest, drawn only where the lines are."""
+def apply_outline(seg: Segmentation, mode: str, width: float, color: tuple[int, int, int]) -> Segmentation:
+    """Return the segmentation holding one color, the one asked for, drawn only where the lines are."""
     darkest = _darkest(seg.colors)
     if mode == "lines":
         mask = seg.labels == darkest
@@ -50,7 +50,7 @@ def apply_outline(seg: Segmentation, mode: str, width: float) -> Segmentation:
     return Segmentation(
         labels=labels,
         raw_labels=labels.copy(),
-        colors=[seg.colors[darkest]],
+        colors=[color],
         scale=seg.scale,
         speck_area=seg.speck_area,
         flat=seg.flat,

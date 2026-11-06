@@ -309,7 +309,7 @@ unpixel axolotl/input.png --colors 8 --outline edges --preview-background '#C9D2
 - **`lines`** conserva solo las formas del color más oscuro. Va bien con ilustraciones que ya tienen contorno, como esta. Si no lo tienen, el color más oscuro es un relleno, y unpixel te avisa.
 - **`edges`** dibuja una línea donde se tocan dos colores, así que funciona con ilustraciones planas sin contorno. Un contorno existente tiene dos lados, así que sale como línea doble, como aquí. El grosor se ajusta con `--outline-width`, en píxeles de la imagen original.
 
-Ambos escriben una sola capa, en el color más oscuro. Para cambiarlo, edita el `fill` de ese grupo en el SVG.
+Ambos escriben una sola capa, en negro. Elige otro color con `--outline-color '#RRGGBB'`.
 
 **Comprueba.** En una vista previa pequeña, las líneas finas pueden ocultar cortes. Abre el informe si las líneas deben ser continuas, por ejemplo para un plóter.
 
