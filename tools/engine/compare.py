@@ -10,9 +10,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from run_battery import IMAGES  # noqa: E402
 
 input_dir, out = sys.argv[1:3]
+variant, prefix = (sys.argv[3], sys.argv[4]) if len(sys.argv) > 4 else ("stacked", "compare")
 for name in IMAGES:
     panels = [("source", glob.glob(f"{input_dir}/{name}.*")[0]), ("today", f"{out}/{name}-today.jpg"),
-              ("engine, stacked", f"{out}/{name}-stacked.jpg")]
+              (f"engine, {variant}", f"{out}/{name}-{variant}.jpg")]
     images = []
     for label, path in panels:
         im = Image.open(path).convert("RGBA")
@@ -29,4 +30,4 @@ for name in IMAGES:
         sheet.paste(im, (x, 22))
         draw.text((x + 6, 5), label, fill="black")
         x += im.width + 6
-    sheet.save(f"{out}/compare-{name}.jpg", quality=90)
+    sheet.save(f"{out}/{prefix}-{name}.jpg", quality=90)
