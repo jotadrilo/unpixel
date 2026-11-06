@@ -30,6 +30,7 @@ Most flat-color artwork needs nothing but the file name. These four use `unpixel
 | A photo or painting | To know what to expect | [9](#9-when-unpixel-is-the-wrong-tool) |
 | A design for a dark or colored surface | To see it there, and recolor it | [10](#10-check-and-recolor-for-the-surface-it-goes-on) |
 | Your own artwork with a draft watermark | To know what will happen to it | [11](#11-artwork-with-a-watermark) |
+| Any design | Only its lines, for coloring or cutting | [12](#12-keep-only-the-lines) |
 
 Before sending anything to print or production, open the preview, and the report if the design has fine detail.
 
@@ -291,6 +292,26 @@ unpixel gives no warning about any of this, because it cannot tell a watermark f
 **Check.** Look at the preview. If you have the original without the overlay, use it, as that is always the better source.
 
 **Rights.** Use this only on images you own or have permission to use. A watermark usually means the image needs a license, and losing the mark during tracing does not grant one. Removing one from someone else's work can be illegal in itself.
+
+## 12. Keep only the lines
+
+**Situation.** You want a coloring page, a stencil or a path for a cutter, with no fills.
+
+```sh
+unpixel axolotl/input.png --colors 8 --outline lines --preview-background '#C9D2FF' -o axolotl/lines.svg
+unpixel axolotl/input.png --colors 8 --outline edges --preview-background '#C9D2FF' -o axolotl/edges.svg
+```
+
+| Input | `--outline lines` | `--outline edges` |
+|---|---|---|
+| <img src="axolotl/input.png" width="260" alt="Axolotl astronaut in full color"> | <img src="axolotl/lines.preview.png" width="260" alt="The same axolotl in clean black outlines, with no fills"> | <img src="axolotl/edges.preview.png" width="260" alt="The same axolotl with a thin line along every boundary between colors"> |
+
+- **`lines`** keeps only the darkest color's shapes. It suits artwork that already has an outline, like this one. On artwork with none, the darkest color is a fill, and unpixel warns you.
+- **`edges`** draws a line wherever two colors meet, so it works on flat artwork with no outline. An existing outline has two sides, so it comes out as a double line, as it does here. Set the thickness with `--outline-width`, in source pixels.
+
+Both write one layer, in the darkest color. To change it, edit that group's `fill` in the SVG.
+
+**Check.** Thin lines shown on a small preview can hide gaps. Open the report if the lines must be continuous, such as for a cutter.
 
 ## For scripts and AI assistants
 

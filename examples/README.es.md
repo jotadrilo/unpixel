@@ -30,6 +30,7 @@ Casi todo el arte de colores planos solo necesita el nombre del archivo. Estos c
 | Una foto o una pintura | Saber qué esperar | [9](#9-cuándo-unpixel-no-es-la-herramienta-adecuada) |
 | Un diseño para una superficie oscura o de color | Verlo ahí y recolorearlo | [10](#10-comprobar-y-recolorear-para-la-superficie-de-destino) |
 | Tu propio diseño con una marca de agua de borrador | Saber qué le ocurrirá | [11](#11-diseños-con-marca-de-agua) |
+| Cualquier diseño | Solo sus líneas, para colorear o cortar | [12](#12-quedarte-solo-con-las-líneas) |
 
 Antes de enviar nada a imprenta o producción, abre la vista previa, y también el informe si el diseño tiene detalles finos.
 
@@ -291,6 +292,26 @@ unpixel no avisa de nada de esto, porque no puede distinguir una marca de agua d
 **Comprueba.** Mira la vista previa. Si tienes el original sin la marca, úsalo: siempre es mejor punto de partida.
 
 **Derechos.** Úsalo solo con imágenes propias o que tengas permiso para usar. Una marca de agua suele indicar que la imagen necesita licencia, y perder la marca al trazarla no te la concede. Quitarla de una obra ajena puede ser ilegal por sí mismo.
+
+## 12. Quedarte solo con las líneas
+
+**Situación.** Quieres una página para colorear, una plantilla o un trazado para un plóter, sin rellenos.
+
+```sh
+unpixel axolotl/input.png --colors 8 --outline lines --preview-background '#C9D2FF' -o axolotl/lines.svg
+unpixel axolotl/input.png --colors 8 --outline edges --preview-background '#C9D2FF' -o axolotl/edges.svg
+```
+
+| Entrada | `--outline lines` | `--outline edges` |
+|---|---|---|
+| <img src="axolotl/input.png" width="260" alt="Ajolote astronauta a todo color"> | <img src="axolotl/lines.preview.png" width="260" alt="El mismo ajolote en contornos negros limpios, sin rellenos"> | <img src="axolotl/edges.preview.png" width="260" alt="El mismo ajolote con una línea fina en cada frontera entre colores"> |
+
+- **`lines`** conserva solo las formas del color más oscuro. Va bien con ilustraciones que ya tienen contorno, como esta. Si no lo tienen, el color más oscuro es un relleno, y unpixel te avisa.
+- **`edges`** dibuja una línea donde se tocan dos colores, así que funciona con ilustraciones planas sin contorno. Un contorno existente tiene dos lados, así que sale como línea doble, como aquí. El grosor se ajusta con `--outline-width`, en píxeles de la imagen original.
+
+Ambos escriben una sola capa, en el color más oscuro. Para cambiarlo, edita el `fill` de ese grupo en el SVG.
+
+**Comprueba.** En una vista previa pequeña, las líneas finas pueden ocultar cortes. Abre el informe si las líneas deben ser continuas, por ejemplo para un plóter.
 
 ## Para scripts y asistentes de IA
 

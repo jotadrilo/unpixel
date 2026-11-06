@@ -97,6 +97,8 @@ unpixel INPUT [options]
 | `--also-transparent '#RRGGBB'` | A color. Repeatable | none | Enclosed areas should be see-through too, such as white inside letters. Thin marks that blend into that color go with it, such as fine grey lines on white. Use the exact value from the warning or from `layers`. |
 | `--layers MODE` | `stacked`, `cutout` | `stacked` | `stacked` overlaps colors slightly so no seams show (print, screen). `cutout` makes colors never overlap (plotters, screen printing). |
 | `--detail LEVEL` | `low`, `medium`, `high` | `medium` | `low` if edges look jagged. `high` if thin lines or small shapes get lost. |
+| `--outline MODE` | `lines`, `edges` | off | You want only lines, in the darkest color. `lines` keeps that color's own shapes, for artwork that already has outlines. `edges` draws a line wherever two colors meet, for flat artwork with none. |
+| `--outline-width PIXELS` | A number above 0 | `2` | The line width for `--outline edges`, in source pixels. |
 | `--preview-background '#RRGGBB'` | A color | contrasting color | You know the surface the design goes on: check it there. It only affects the preview and report, not the SVG. |
 | `-o`, `--output FILE.svg` | Path | next to the input | You want the output elsewhere. The report and preview go beside it, and missing folders are created. |
 | `--force` | | off | Overwrite existing output files. Without it, unpixel refuses to overwrite and changes nothing. |

@@ -331,3 +331,47 @@ def test_open_with_no_report_is_a_usage_error(save, stamp):
     with pytest.raises(SystemExit) as info:
         main([str(save(stamp)), "--open", "--no-report"])
     assert info.value.code == 2
+
+
+def test_outline_lines_keeps_only_the_darkest_color(save, ticket, capsys):
+    code, result = run(capsys, save(ticket), "--outline", "lines")
+    assert code == 0
+    assert result["outline"] == "lines"
+    assert len(result["layers"]) == 1
+    assert close(result["layers"][0]["color"], NAVY)
+    assert not has_color(result, RED)
+    assert not has_color(result, CREAM)
+    rgba = drawn(result)
+    assert rgba[5, 5, 3] == 0  # the page stays transparent
+    assert (rgba[..., 3] == 0).mean() > 0.5  # filled areas are gone
+
+
+def test_outline_edges_draws_a_line_where_flat_colors_meet(save, capsys):
+    image = Image.new("RGB", (600, 400), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((100, 100, 300, 300), fill=RED)
+    draw.rectangle((300, 100, 500, 300), fill=NAVY)
+    code, result = run(capsys, save(image), "--outline", "edges", "--outline-width", "4")
+    assert code == 0
+    assert len(result["layers"]) == 1
+    assert close(result["layers"][0]["color"], NAVY)
+    rgba = drawn(result)
+    assert rgba[200, 200, 3] == 0  # inside a fill: empty
+    assert rgba[200, 400, 3] == 0
+    assert rgba[200, 300, 3] > 0  # between the two colors: a line
+    assert rgba[200, 100, 3] > 0  # between a color and the removed background: a line
+    assert rgba[50, 50, 3] == 0  # the page stays transparent
+
+
+def test_outline_lines_warns_when_the_darkest_color_is_a_fill(save, capsys):
+    image = Image.new("RGB", (600, 400), (255, 255, 255))
+    ImageDraw.Draw(image).rectangle((100, 100, 500, 300), fill=NAVY)
+    code, result = run(capsys, save(image), "--outline", "lines")
+    assert code == 0
+    assert any("--outline edges" in warning for warning in result["warnings"])
+
+
+def test_outline_width_needs_edges(save, ticket):
+    with pytest.raises(SystemExit) as stopped:
+        main([str(save(ticket)), "--outline", "lines", "--outline-width", "3"])
+    assert stopped.value.code == 2

@@ -43,6 +43,10 @@ $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA
 $u axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/result.svg
 sed 's/viewBox="0 0 1408 768" width="1408" height="768"/viewBox="359 36 697 697" width="697" height="697"/' axolotl/result.svg > axolotl/logo.svg
 
+# 12. Keep only the lines
+$u axolotl/input.png --colors 8 --outline lines --preview-background '#C9D2FF' -o axolotl/lines.svg
+$u axolotl/input.png --colors 8 --outline edges --preview-background '#C9D2FF' -o axolotl/edges.svg
+
 # 8. Fix lost detail or jagged edges
 $u ornament/input.png --detail low -o ornament/low.svg
 $u ornament/input.png -o ornament/medium.svg
