@@ -211,6 +211,9 @@ def _trace(
         arc_soft = np.array(soft_steep, dtype=np.float64) < SOFT_WALL_DE
         corners = {k: v for k, v in corners.items() if not arc_soft[k]}
         info["corners"] = sum(len(v) for v in corners.values())
+        for k, cut in corners.items():
+            soft_chains[k] = soft_chains[k].copy()
+            curves.sharpen_corners(soft_chains[k], cut, bool(closed[k]), step)
         pieces: list[np.ndarray] = []
         piece_closed: list[bool] = []
         piece_owner: list[int] = []

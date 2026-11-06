@@ -134,6 +134,53 @@ def find_corners(
     return out
 
 
+def sharpen_corners(chain: np.ndarray, corners: list[int], closed: bool, step: float) -> None:
+    """Where both arms of a corner run straight, put the corner at their crossing, and the arm's points on the arms.
+
+    Antialiasing rounds a corner by about a pixel. A corner between two straight edges can have it back, which
+    also lets the edges fit as lines. A tip between curves is left as it is.
+    """
+    n = len(chain)
+    near, far = max(2, int(round(1.5 / step))), max(4, int(round(6.0 / step)))
+    if n < 2 * far + 2:
+        return
+    for c in corners:
+        if closed:
+            back = chain[(c - np.arange(near, far)) % n]
+            ahead = chain[(c + np.arange(near, far)) % n]
+        else:
+            if c - far < 0 or c + far >= n:
+                continue
+            back = chain[c - np.arange(near, far)]
+            ahead = chain[c + np.arange(near, far)]
+        lines = []
+        for arm in (back, ahead):
+            middle = arm.mean(0)
+            d = arm[-1] - arm[0]
+            d = d / max(float(np.hypot(*d)), 1e-9)
+            off = (arm - middle)[:, 0] * d[1] - (arm - middle)[:, 1] * d[0]
+            if float(np.abs(off).max()) > 0.25:
+                lines = None
+                break
+            lines.append((middle, d))
+        if lines is None:
+            continue
+        (p, u), (q, v) = lines
+        det = u[0] * v[1] - u[1] * v[0]
+        if abs(det) < 0.2:
+            continue
+        t = ((q - p)[0] * v[1] - (q - p)[1] * v[0]) / det
+        cross = p + t * u
+        if float(np.hypot(*(cross - chain[c]))) > 2.5:
+            continue
+        for j in range(1, near):
+            i = (c - j) % n if closed else c - j
+            chain[i] = p + u * float((chain[i] - p) @ u)
+            i = (c + j) % n if closed else c + j
+            chain[i] = q + v * float((chain[i] - q) @ v)
+        chain[c] = cross
+
+
 def smooth_chains(chains: list[np.ndarray], closed: np.ndarray, sigmas: np.ndarray) -> list[np.ndarray]:
     """Gaussian smoothing with its shrinkage put back: G(x) + G(x - G(x)). Sigma is per chain, in points."""
     out = list(chains)
