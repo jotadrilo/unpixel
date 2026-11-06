@@ -7,6 +7,9 @@ import numpy as np
 from ..color import to_hex
 
 
+TRAP_TOLERANCE = 0.25  # source pixels; the stroke reaches a pixel to each side, so this still covers the wall
+
+
 def _num(value: float) -> str:
     text = f"{value:.2f}"
     if "." in text:
@@ -53,6 +56,43 @@ def _split(seg: np.ndarray, t: float) -> tuple[np.ndarray, np.ndarray]:
     e = b + (c - b) * t
     f = d + (e - d) * t
     return np.stack([seg[0], a, d, f]), np.stack([f, e, c, seg[3]])
+
+
+def _polyline(points: np.ndarray, kinds: np.ndarray, tolerance: float) -> str:
+    """A run of segments as few straight lines, for a trap stroke, where nobody sees the path itself."""
+    if len(points) == 0:
+        return ""
+    sample = [points[0, 0]]
+    for seg, kind in zip(points, kinds.tolist()):
+        if kind:
+            # Fine enough that the samples themselves stay within tolerance of the curve.
+            steps = max(4, int(np.ceil(float(np.hypot(*(seg[3] - seg[0]))) / 3.0)))
+            for t in (i / steps for i in range(1, steps)):
+                u = 1.0 - t
+                sample.append(u**3 * seg[0] + 3 * u * u * t * seg[1] + 3 * u * t * t * seg[2] + t**3 * seg[3])
+        sample.append(seg[3])
+    xy = np.array(sample)
+    keep = [0, len(xy) - 1]
+    stack = [(0, len(xy) - 1)]
+    while stack:
+        a, b = stack.pop()
+        if b - a < 2:
+            continue
+        chord = xy[b] - xy[a]
+        length = float(np.hypot(*chord))
+        rel = xy[a + 1 : b] - xy[a]
+        if length < 1e-6:  # a closed loop: measure from its start
+            d = np.hypot(rel[:, 0], rel[:, 1])
+        else:
+            d = np.abs(rel[:, 0] * chord[1] - rel[:, 1] * chord[0]) / length
+        i = int(np.argmax(d))
+        if d[i] > tolerance:
+            at = a + 1 + i
+            keep.append(at)
+            stack += [(a, at), (at, b)]
+    keep.sort()
+    first = xy[keep[0]]
+    return f"M{first[0]:.1f} {first[1]:.1f}" + "".join(f"L{xy[k][0]:.1f} {xy[k][1]:.1f}" for k in keep[1:])
 
 
 def write_svg(
@@ -104,6 +144,15 @@ def write_svg(
             end_of[i] = f"{_num(pts[-1, 3, 0])} {_num(pts[-1, 3, 1])}"
         return got, end_of[i]
 
+    # The lowest thing at each junction, -1 for the unpainted outside. A stroke's square end pokes over it.
+    lowest: dict[int, int] = {}
+    for arc in arcs:
+        if arc.start < 0:
+            continue
+        here = min(-1 if r == 0 else int(z_of_class[region_class[r]]) for r in (arc.left, arc.right))
+        for v in (arc.start, arc.end):
+            lowest[v] = min(lowest.get(v, 1 << 30), here)
+
     # Walls each lower color strokes, by stroke width.
     traps: dict[int, dict[float, list[str]]] = {}
     if under > 0:
@@ -113,13 +162,17 @@ def write_svg(
             ca, cb = int(region_class[arc.left]), int(region_class[arc.right])
             low, high = (arc.left, arc.right) if z_of_class[ca] < z_of_class[cb] else (arc.right, arc.left)
             reach = under if thickness is None else min(under, 0.5 * float(thickness[high]))
-            width_key = round(max(reach, 0.2) * 2 * 5) / 5  # few stroke widths, so few paths
+            # Wide enough for the stroke's own simplification; few stroke widths, so few paths.
+            width_key = round((max(reach, 0.2) + TRAP_TOLERANCE) * 2 * 5) / 5
             pts, kinds = arc_points(i)
             if len(pts) == 0:
                 continue
             # A stroke's square end must not poke past its wall, over the artwork's edge or a third color.
-            pts = _trim(pts, kinds, arc.start >= 0, arc.end >= 0, width_key / 2)
-            d = f"M{_num(pts[0, 0, 0])} {_num(pts[0, 0, 1])}" + _segments_text(pts, kinds)
+            z_low = int(z_of_class[region_class[low]])
+            cut_start = arc.start >= 0 and lowest[arc.start] < z_low
+            cut_end = arc.end >= 0 and lowest[arc.end] < z_low
+            pts = _trim(pts, kinds, cut_start, cut_end, width_key / 2)
+            d = _polyline(pts, kinds, TRAP_TOLERANCE)
             traps.setdefault(int(region_class[low]), {}).setdefault(width_key, []).append(d)
 
     by_class: dict[int, list[int]] = {}

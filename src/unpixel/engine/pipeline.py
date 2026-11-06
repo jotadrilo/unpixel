@@ -18,6 +18,8 @@ SMOOTH_SIGMA = 1.3  # source pixels
 SOFT_SIGMA = 6.0  # source pixels, for walls across a soft gradient
 SOFT_WALL_DE = 2.5  # delta-E per source pixel: a wall with less contrast across it than this is soft
 FIT_TOLERANCE = 0.45  # source pixels
+FAINT_WALL_DE = 14.0
+FAINT_WALL_TOLERANCE = 0.6
 UNDER = 1.0  # how far, in source pixels, the color below a wall reaches under the region above it
 CORNER_SPAN = 2.6  # source pixels: a real cut does its turning within this
 CORNER_TURN = 60.0  # degrees
@@ -289,9 +291,16 @@ def _trace(
             if arc.start >= 0:
                 by_vertex.setdefault(arc.start, []).append((first_piece[k], False))
                 by_vertex.setdefault(arc.end, []).append((last_piece[k], True))
-        fitted = curves.fit_chains(
-            smoothed, p_closed, tolerance=FIT_TOLERANCE, junctions=list(by_vertex.values())
-        )
+        # Walls with little contrast get a looser fit.
+        tolerance = np.full(len(pieces), FIT_TOLERANCE)
+        for p, k in enumerate(piece_owner):
+            arc = arcs[soft_ids[k]]
+            ca, cb = region_class[arc.left], region_class[arc.right]
+            if arc.left != 0 and arc.right != 0:
+                contrast = float(np.sqrt(((palette_all[ca] - palette_all[cb]) ** 2).sum()))
+                if contrast < FAINT_WALL_DE:
+                    tolerance[p] = FAINT_WALL_TOLERANCE
+        fitted = curves.fit_chains(smoothed, p_closed, tolerance=tolerance, junctions=list(by_vertex.values()))
 
         # All arcs' segments, in arc order, in one array.
         all_points: list[np.ndarray] = []

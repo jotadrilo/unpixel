@@ -14,6 +14,7 @@ from scipy import ndimage as ni
 
 
 TANGENT_LAG = 8
+MIN_HANDLE = 0.2  # of the segment's length
 MIN_LINE_LENGTH = 6.0  # source pixels: shorter straight pieces stay curves, whose ends share tangents
 
 
@@ -275,7 +276,7 @@ def _align_junctions(tangents: np.ndarray, first: np.ndarray, last: np.ndarray, 
 def fit_chains(
     chains: list[np.ndarray],
     closed: np.ndarray,
-    tolerance: float = 0.3,
+    tolerance: float | np.ndarray = 0.3,
     line_tolerance: float = 0.12,
     samples: int = 24,
     junctions: list[list[tuple[int, bool]]] | None = None,
@@ -312,6 +313,8 @@ def fit_chains(
     step[offsets[1:-1] - 1] = 0.0
     S = np.concatenate([[0.0], np.cumsum(step)])
 
+    # Tolerance per chain, so a faint wall can be fitted more loosely: nobody can see where it runs to 0.1 px.
+    tol_of_point = np.broadcast_to(np.asarray(tolerance, dtype=np.float64), (count,))[owner]
     first, last = offsets[:-1], offsets[1:] - 1
     if junctions:
         _align_junctions(T, first, last, junctions)
@@ -354,6 +357,9 @@ def fit_chains(
             bad = (alpha < small) | (beta < small) | (alpha > 1.5 * length) | (beta > 1.5 * length)
             alpha = np.where(bad, length / 3, alpha)
             beta = np.where(bad, length / 3, beta)
+            # A very short handle turns almost at once: smooth by the numbers, a kink to the eye.
+            alpha = np.maximum(alpha, MIN_HANDLE * length)
+            beta = np.maximum(beta, MIN_HANDLE * length)
             p1 = p0 + t0 * alpha[:, None]
             p2 = p3 + t3 * beta[:, None]
             # One Newton step per round moves each parameter toward its closest point on the curve.
@@ -373,7 +379,7 @@ def fit_chains(
         b0, b1, b2, b3 = (1 - u) ** 3, 3 * u * (1 - u) ** 2, 3 * u * u * (1 - u), u**3
         q = p0[:, None] * b0[..., None] + p1[:, None] * b1[..., None] + p2[:, None] * b2[..., None] + p3[:, None] * b3[..., None]
         err = np.sqrt(((q - d) ** 2).sum(-1))
-        accept = (err.max(1) <= tolerance) | (span < 4) | straight
+        accept = (err.max(1) <= tol_of_point[i0]) | (span < 4) | straight
         bez = np.stack([p0, p1, p2, p3], axis=1)
         line = np.stack([p0, p0 + chord / 3, p0 + 2 * chord / 3, p3], axis=1)
         chosen = np.where(straight[:, None, None], line, bez)
