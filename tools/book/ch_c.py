@@ -233,7 +233,7 @@ def chapter8(ctx):
     # The segments drawn only once should be exactly those against the unpainted background.
     on_bg = sum(L["arc_chain"][i][1] - L["arc_chain"][i][0] for i, arc_ in enumerate(arcs) if arc_.left == 0 or arc_.right == 0)
     written = ctx.runs["axolotl/new/cutout"]["measure"]["shared"]
-    d["once_axolotl"], d["on_bg_axolotl"] = written["once"], on_bg
+    d["once_axolotl"], d["on_bg_axolotl"] = written["once"], int(on_bg)
     # Share of segments shared by two sides, from the written SVGs.
     rows = []
     for name in SOURCES:

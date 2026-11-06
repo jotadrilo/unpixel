@@ -168,7 +168,7 @@ def main():
         print(f"{fn.__name__}: {time.time() - t:.0f} s", flush=True)
     if cached:
         values_file.write_text(json.dumps({k: v for k, v in values.items() if isinstance(v, (str, int, float))}))
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+    commit = subprocess.run(["git", "log", "-1", "--format=%h", "--", "src"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
     font = base64.b64encode((HERE / "assets/PixelifySans-subset.woff2").read_bytes()).decode()
     values.update(commit=commit, font=font, assign_window=lab_mod.ASSIGN_WINDOW, background_window=lab_mod.BACKGROUND_WINDOW)
     body = expand_figures((HERE / "book.html").read_text(encoding="utf-8"))

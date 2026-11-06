@@ -55,7 +55,7 @@ def main():
             page.close()
             pins[name] = int(np.asarray(Image.open(io.BytesIO(shot)).convert("RGBA"))[y, x, 3])
         browser.close()
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=HERE).stdout.strip()
+    commit = subprocess.run(["git", "log", "-1", "--format=%h", "--", "src"], capture_output=True, text=True, cwd=HERE.parents[1]).stdout.strip()
     (HERE / "data").mkdir(exist_ok=True)
     (HERE / "data/browser.json").write_text(json.dumps({"browser": f"Chromium {version}", "commit": commit, "pins": pins, "rows": rows}, indent=0))
 

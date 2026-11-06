@@ -150,14 +150,18 @@ Esquina de <code>synth-pixel</code>, bloque de {{px_block}} px. El clásico la a
 ===
 Punta del triángulo de <code>synth-hard</code>, en escalera por no tener antialiasing. Los dos motores lo enderezan: aquí apenas hay diferencia.
 >>>
-<h3>Rechazar o no rechazar</h3>
-<p>El clásico lanza <code>UnsuitableImage</code> si casi no encuentra color plano. El nuevo acepta todo. Esto no es solo una mejora: aceptar todo también significa devolver un mal resultado sin avisar.</p>
-<<< real 2 pix
+<h3>Rechazar o simplificar</h3>
+<p>¿Qué hacer con una imagen que no es un dibujo, como una foto o puro ruido? El clásico la rechaza: lanza <code>UnsuitableImage</code> si casi no encuentra color plano. El nuevo la simplifica.</p>
+<p>Un resultado con más de {{busy_limit}} regiones se considera demasiado ocupado. <code>segment_new</code> desenfoca la imagen con un sigma de 2 px y vuelve a empezar; si no basta, 4, y luego 8, con el que se queda. Avisa de que lo ha hecho.</p>
+<<< real 3 pix
 {{f3_noise_src}} | Rampa con ruido (generada, semilla fija)
-{{f3_noise_new}} | Motor nuevo: {{noise_colors}} colores, {{noise_kb}} KB
+{{f3_noise_before}} | Sin reintento: {{noise_before_kb}} KB
+{{f3_noise_after}} | Con reintento: {{noise_after_kb}} KB
 ===
-El clásico rechaza esta imagen con <i>«{{refusal}}»</i>. El nuevo entrega un SVG de {{noise_kb}} KB que no sirve para nada. Un rechazo a tiempo era también información.
+Antes, <code>pipeline.run</code>, que no reintenta ({{noise_before_regions}} regiones, {{noise_colors}} colores, {{noise_before_s}} s). Después, el CLI con <code>--engine new</code> ({{noise_after_s}} s, {{noise_after_mb}} MB). Regiones por intento: {{noise_attempts}}; se detiene con sigma {{noise_blur}}. El aviso: <i>«{{noise_warning}}»</i>. El clásico rechaza esta misma imagen: <i>«{{refusal}}»</i>.
 >>>
+<p>Con reintento se pierde el grano, y la rampa vuelve a leerse como bandas: lo que se gana es un archivo que se puede abrir. Con ruido puro de 1,5 megapíxeles, el CLI aquí tarda {{pure_s}} s, con un pico de {{pure_mb}} MB y {{pure_kb}} KB. Según las pruebas de desarrollo de este cambio, no repetidas aquí, antes costaba 360 s, 25 GB y 294 MB.</p>
+<p>El reintento solo está en el camino del CLI. Las imágenes de la batería no llegan al límite: la más ocupada tiene unas 1300 regiones, según el código.</p>
 
 <h2 id="c4">4. Color</h2>
 <h3>Lab, y por qué hay que deformarlo</h3>
@@ -605,7 +609,7 @@ Dibujo hecho a mano de un corte. El trazo, del color inferior, se queda bajo el 
 {{f8_fills}} | Solo rellenos
 {{f8_traps}} | Solo trazos trampa
 ===
-Las dos partes reales del SVG del ajolote. En total son {{trap_paths}} trazados de trampa, de anchos {{trap_widths}} px. Se escriben como polilíneas simplificadas a {{trap_tol}} px, porque nadie ve su forma. Aun así, un SVG <code>stacked</code> pesa bastante más que su <code>cutout</code>.
+Las dos partes reales del SVG del ajolote. En total son {{trap_paths}} trazados de trampa, de anchos {{trap_widths}} px. Se escriben como polilíneas simplificadas a {{trap_tol}} px, porque nadie ve su forma. Aun así, un SVG <code>stacked</code> pesa bastante más que su <code>cutout</code>. Cada trazo lleva además <code>data-shapes</code>, con la forma dueña de cada pared, para que una herramienta de recolorear no tenga que deducirla de la geometría.
 >>>
 <h3>Apilado o recortado</h3>
 <p><code>stacked</code> escribe rellenos y trampas, y ordena las capas por grosor: lo grueso abajo, lo fino arriba, para que las paredes de lo fino queden exactas. <code>cutout</code> solo escribe rellenos, y ordena por área. Sirve para plotter y serigrafía, y se le notarán costuras en pantalla. El clásico ordena siempre por área, lo mayor abajo.</p>
@@ -643,7 +647,7 @@ Solo el motor, sin informe ni vista previa, cada uno en su proceso. La memoria e
 <h3>Más colores</h3>
 <p>{{worse_colors_n}} de 9 imágenes usan más colores: {{worse_colors}}. El nuevo llega a 20, por encima de las 16 que el clásico tiene como tope automático. Nada en el código busca menos colores una vez cubierto lo que se ve.</p>
 <h3>SVG más grande</h3>
-<p>En {{worse_kb_n}} de 9: {{worse_kb}}. Las trampas pesan. El caso de <code>ghost</code> se explica por sus 8 colores frente a 2. El <code>float</code> que antes salía en esta lista ya no está.</p>
+<p>En {{worse_kb_n}} de 9: {{worse_kb}}. Las trampas pesan. El caso de <code>ghost</code> se explica por sus 8 colores frente a 2. </p>
 <h3>Defectos a la vista</h3>
 <<< real 3 pix
 {{f10_lathe_src}} | Fuente

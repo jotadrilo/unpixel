@@ -176,12 +176,64 @@ def chapter3(ctx):
         d["refusal"] = "(el motor clásico la aceptó)"
     except seg_mod.UnsuitableImage as e:
         d["refusal"] = str(e)
+    # The engine alone, with no retry: `pipeline.run` is what the CLI's `segment_new` calls after a busy result.
+    import json
+    import subprocess
+    import time
+
+    from harness import locals_of, patches, recorder
+    from unpixel.cli import Options
+    from unpixel.engine import adapter
+
+    def es(v, digits=1):
+        return f"{v:.{digits}f}".replace(".", ",")
+
+    def thousands(v):
+        return f"{v:,}".replace(",", ".")
+
+    here = Path(__file__).resolve().parent
+    work.mkdir(parents=True, exist_ok=True)
+    src = work / "noise-ramp.png"
+    Image.fromarray(noisy).save(src)
+    t = time.perf_counter()
     r = pipe_mod.run(noisy, "stacked", "noise")
+    before_s = time.perf_counter() - t
+    before_regions = lab_mod._regions(r.labels, len(r.colors) + 1)[1]
     d["f3_noise_src"] = save(noisy, "3-noise-src.png")
-    d["f3_noise_new"] = save(svg_crop(r.svg).convert("RGB"), "3-noise-new.png")
-    d["noise_kind"] = r.kind
+    d["f3_noise_before"] = save(svg_crop(r.svg).convert("RGB"), "3-noise-before.png")
     d["noise_colors"] = len(r.colors)
-    d["noise_kb"] = round(len(r.svg) / 1024)
+    d["noise_before_kb"] = thousands(round(len(r.svg) / 1024))
+    d["noise_before_s"] = es(before_s)
+    d["noise_before_regions"] = thousands(before_regions)
+
+    def cli(image, out):
+        done = subprocess.run([sys.executable, str(here / "run_cli_measured.py"), str(image), str(out), "--engine", "new"],
+                              capture_output=True, text=True, timeout=1800)
+        if done.returncode:
+            raise RuntimeError(done.stderr[-1500:])
+        return json.loads(done.stdout)
+
+    out_ramp = work / "noise-ramp.svg"
+    after = cli(src, out_ramp)
+    d["f3_noise_after"] = save(svg_crop(out_ramp.read_text(encoding="utf-8")).convert("RGB"), "3-noise-after.png")
+    d["noise_after_kb"] = thousands(round(after["svg_kb"]))
+    d["noise_after_s"] = es(after["seconds"])
+    d["noise_after_mb"] = thousands(after["peak_rss_mb"])
+    d["noise_warning"] = next((w for w in after["warnings"] if "busy" in w), "(sin aviso)")
+    # Each attempt of the real retry, and how many regions it left.
+    tries: list = []
+    with patches((pipe_mod, "clean_labels", recorder(tries))), locals_of(adapter.segment_new) as seen:
+        adapter.segment_new(noisy, Options())
+    frame = seen["segment_new"][0]
+    d["noise_blur"] = f"{frame['blur']:g}"
+    d["noise_attempts"] = " → ".join(thousands(lab_mod._regions(c["result"][0], len(c["result"][4]))[1]) for c in tries)
+    d["busy_limit"] = thousands(adapter.BUSY_REGIONS)
+    # Pure noise at 1.5 megapixels, through the same command line.
+    pure = np.random.default_rng(4).integers(0, 256, (1224, 1224, 3), dtype=np.uint8)
+    src_pure = work / "noise-pure.png"
+    Image.fromarray(pure).save(src_pure)
+    p = cli(src_pure, work / "noise-pure.svg")
+    d["pure_s"], d["pure_mb"], d["pure_kb"] = es(p["seconds"]), thousands(p["peak_rss_mb"]), thousands(round(p["svg_kb"]))
     return d
 
 
