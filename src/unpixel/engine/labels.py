@@ -40,8 +40,13 @@ def lab_to_srgb(lab: np.ndarray) -> np.ndarray:
 
 
 CHROMA_K = 0.008
-DARK_FULL_L = 40.0
-DARK_MIN = 0.25
+DARK_START_L = 8.0
+DARK_FULL_L = 28.0
+DARK_MIN = 0.2
+
+
+def _dark_factor(lightness: np.ndarray) -> np.ndarray:
+    return np.clip((lightness - DARK_START_L) / (DARK_FULL_L - DARK_START_L), DARK_MIN, 1.0)
 
 
 def perceptual(lab: np.ndarray) -> np.ndarray:
@@ -52,13 +57,13 @@ def perceptual(lab: np.ndarray) -> np.ndarray:
     """
     lab = np.asarray(lab, dtype=np.float32)
     c = np.hypot(lab[..., 1], lab[..., 2])
-    k = np.clip(lab[..., 0] / DARK_FULL_L, DARK_MIN, 1.0) / (1.0 + CHROMA_K * c)
+    k = _dark_factor(lab[..., 0]) / (1.0 + CHROMA_K * c)
     return np.stack([lab[..., 0], lab[..., 1] * k, lab[..., 2] * k], axis=-1)
 
 
 def from_perceptual(warped: np.ndarray) -> np.ndarray:
     warped = np.asarray(warped, dtype=np.float32)
-    dark = np.clip(warped[..., 0] / DARK_FULL_L, DARK_MIN, 1.0)
+    dark = _dark_factor(warped[..., 0])
     a, b = warped[..., 1] / dark, warped[..., 2] / dark
     cp = np.hypot(a, b)
     grow = 1.0 / np.maximum(1.0 - CHROMA_K * cp, 0.05)
@@ -178,6 +183,7 @@ class PaletteInfo:
 
 BIN = 2.5
 MODE_RADIUS = 5.0
+FILL_MIN_DE = 9.0
 HIGHLIGHT_MIN_DE = 12.0
 STOP_DE = 9.0  # nothing above the floor is farther than this from the palette: enough colors
 BEYOND_SOFT_DE = 26.0  # past the soft limit, a color must be this far from every other
@@ -193,8 +199,8 @@ def build_palette(
     floor_share: float = 0.00012,
     area_power: float = 0.3,
     highlights: np.ndarray | None = None,
-    highlight_slots: int = 4,
-    highlight_at: int = 10,
+    highlight_slots: int = 3,
+    highlight_at: int = 9,
 ) -> PaletteInfo:
     """Deterministic farthest-point palette over a histogram of the solid pixels.
 
@@ -255,8 +261,17 @@ def build_palette(
                 d = np.minimum(d, np.sqrt(((means - hl_means[pick_h]) ** 2).sum(-1)))
                 continue
             slots = 0
-        score = d * d * mass**area_power
+        # The slots after the highlights go to what is left unexplained by area: a second band of sky, say.
+        fill = hl_means is None or slots <= 0 or len(centers) >= highlight_at + highlight_slots
+        late = count is None and fill and len(centers) >= highlight_at and len(centers) < soft_max
+        score = d * d * mass ** (1.0 if late else area_power)
         score[~alive] = -1
+        if late:
+            # A tone close to a large color is only its grain; it must also be well away from the palette.
+            score[d < FILL_MIN_DE] = -1
+            if score.max() < 0:
+                score = d * d * mass**area_power
+                score[~alive] = -1
         pick = int(np.argmax(score))
         worst = float(d[pick]) if d[pick] > 0 else 0.0
         far = float(d[alive].max())

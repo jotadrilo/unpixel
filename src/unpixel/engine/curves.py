@@ -13,6 +13,10 @@ import numpy as np
 from scipy import ndimage as ni
 
 
+TANGENT_LAG = 8
+MIN_LINE_LENGTH = 6.0  # source pixels: shorter straight pieces stay curves, whose ends share tangents
+
+
 def gauss_kernel(sigma: float) -> np.ndarray:
     radius = max(1, int(np.ceil(3 * sigma)))
     x = np.arange(-radius, radius + 1)
@@ -208,8 +212,10 @@ def fit_chains(
     count = len(chains)
     if count == 0:
         return Fitted(np.zeros((0, 4, 2)), np.zeros(0, dtype=np.int8), np.zeros(1, dtype=np.int64))
-    pad_flat = Flat(chains, closed, 2)
-    tan_all = pad_flat.padded[4:] - pad_flat.padded[:-4]  # lag 2: index i in padded maps to i - 2 here
+    # Directions measured over a few points, since a knot's tangent decides how well both its curves fit.
+    lag = TANGENT_LAG
+    pad_flat = Flat(chains, closed, lag)
+    tan_all = pad_flat.padded[2 * lag :] - pad_flat.padded[: -2 * lag]  # index i in padded is i - lag here
     # Per chain, own points plus the first again for closed ones.
     sizes = pad_flat.sizes + closed.astype(np.int64)
     offsets = np.concatenate([[0], np.cumsum(sizes)])
@@ -221,7 +227,7 @@ def fit_chains(
     wrap = rel >= pad_flat.sizes[owner]  # the repeated first point of a closed chain
     src = pad_flat.first[owner] + np.where(wrap, 0, rel)
     P[:] = pad_flat.padded[src]
-    T[:] = tan_all[src - 2]
+    T[:] = tan_all[src - lag]
     # Very short open chains have no useful local direction but their chord.
     norm = np.hypot(T[:, 0], T[:, 1])
     T /= np.maximum(norm, 1e-9)[:, None]
@@ -253,7 +259,7 @@ def fit_chains(
         unit = chord / np.maximum(chord_len, 1e-9)[:, None]
         rel = d - p0[:, None]
         off = np.abs(rel[..., 0] * unit[:, 1, None] - rel[..., 1] * unit[:, 0, None]).max(1)
-        straight = (off <= line_tolerance) & (chord_len >= 0.7 * length)
+        straight = (off <= line_tolerance) & (chord_len >= 0.7 * length) & (chord_len >= MIN_LINE_LENGTH)
         t0, t3 = T[i0], -T[i1]
         for _ in range(3):
             b0, b1, b2, b3 = (1 - u) ** 3, 3 * u * (1 - u) ** 2, 3 * u * u * (1 - u), u**3
