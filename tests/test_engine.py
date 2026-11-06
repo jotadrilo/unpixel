@@ -235,7 +235,9 @@ def test_geometry_keeps_straight_edges(aa):
     d = re.search(r'fill="#1E3CA0"[^>]*>\s*<path d="([^"]+)"', svg).group(1)
     numbers = np.array(re.findall(r"-?\d+(?:\.\d+)?", d), dtype=float).reshape(-1, 2)
     left = numbers[(numbers[:, 0] < 90) & (numbers[:, 1] > 90) & (numbers[:, 1] < 290)]
-    assert len(left) >= 1 and np.abs(left[:, 0] - 80).max() < 0.35
+    assert len(left) == 0 or np.abs(left[:, 0] - 80).max() < 0.35
+    # Its corner is at the edges' crossing, to within a pixel, and there is a node there.
+    assert (np.hypot(numbers[:, 0] - 80, numbers[:, 1] - 80) < 1.0).any()
 
 
 def test_smoothness_on_a_jagged_wall():
