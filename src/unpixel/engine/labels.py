@@ -39,7 +39,7 @@ def lab_to_srgb(lab: np.ndarray) -> np.ndarray:
     return c * 255.0
 
 
-CHROMA_K = 0.012
+CHROMA_K = 0.008
 DARK_FULL_L = 40.0
 DARK_MIN = 0.25
 
@@ -137,7 +137,7 @@ class Background:
 HALO_DE = 5.0
 
 
-def find_background(lab: np.ndarray, border_share: float = 0.85) -> Background:
+def find_background(lab: np.ndarray, border_share: float = 0.85, erode: bool = True) -> Background:
     """Flood from the border through pixels alike to the border's dominant color.
 
     The gate is narrow, set by the noise of the border itself. So a sticker's white stays out of the flood
@@ -156,7 +156,7 @@ def find_background(lab: np.ndarray, border_share: float = 0.85) -> Background:
     # A pale halo around the artwork is the background too; a sticker's border is walled off by its line.
     tau = max(tau, HALO_DE)
     near = d <= tau
-    core = ni.binary_erosion(near, iterations=1, border_value=1)
+    core = ni.binary_erosion(near, iterations=1, border_value=1) if erode else near
     parts, _ = ni.label(core)
     touching = np.unique(np.concatenate([parts[0], parts[-1], parts[:, 0], parts[:, -1]]))
     touching = touching[touching > 0]
@@ -177,9 +177,10 @@ class PaletteInfo:
 
 
 BIN = 2.5
+MODE_RADIUS = 5.0
 HIGHLIGHT_MIN_DE = 12.0
 STOP_DE = 9.0  # nothing above the floor is farther than this from the palette: enough colors
-BEYOND_SOFT_DE = 22.0  # past the soft limit, a color must be this far from every other
+BEYOND_SOFT_DE = 26.0  # past the soft limit, a color must be this far from every other
 _ORIGIN = np.array([0.0, -128.0, -128.0], dtype=np.float32)
 
 
@@ -278,6 +279,20 @@ def build_palette(
             hit = owner == k
             if hit.any():
                 centers[k] = np.average(means[hit], axis=0, weights=weights[hit])
+    # A center between two distinct tones is a color the image does not have. Where the mean of a cell lies in
+    # an empty part of the histogram, the cell takes its densest tone instead.
+    owner = ((means[:, None] - centers[None]) ** 2).sum(-1).argmin(1)
+    for k in range(len(centers)):
+        hit = np.nonzero(owner == k)[0]
+        if hit.size == 0:
+            continue
+        peak = hit[int(np.argmax(mass[hit]))]
+        around_mean = ((means[hit] - centers[k]) ** 2).sum(-1) <= MODE_RADIUS**2
+        here = float(weights[hit][around_mean].sum())
+        around_peak = ((means[hit] - means[peak]) ** 2).sum(-1) <= MODE_RADIUS**2
+        there = float(weights[hit][around_peak].sum())
+        if here < 0.35 * there:
+            centers[k] = np.average(means[hit][around_peak], axis=0, weights=weights[hit][around_peak])
     # Lloyd can bring two centers together. They are one color then.
     merged: list[np.ndarray] = []
     owner = ((means[:, None] - centers[None]) ** 2).sum(-1).argmin(1)
@@ -431,6 +446,7 @@ def dissolve_fringes(
     ca = neighbor[two][has_two]
     cb = neighbor[second_at[has_two]]
     wall = counts[two][has_two] + counts[second_at[has_two]]
+    weaker = counts[second_at[has_two]]
     A, B = palette_all[ca], palette_all[cb]
     C = palette_all[region_class[r]]
     ab = B - A
@@ -438,7 +454,7 @@ def dissolve_fringes(
     u = ((C - A) * ab).sum(-1) / n2
     res = np.sqrt(((C - A - u[:, None] * ab) ** 2).sum(-1))
     length = np.sqrt(n2)
-    is_fringe = (u > 0.03) & (u < 0.97) & (res <= np.maximum(3.0, tolerance * length)) & (length >= 12.0) & (wall >= 0.7 * perimeter[r])
+    is_fringe = (u > 0.03) & (u < 0.97) & (res <= np.maximum(3.0, tolerance * length)) & (length >= 12.0) & (wall >= 0.7 * perimeter[r]) & (weaker >= 0.25 * perimeter[r])
     r, ca, cb = r[is_fringe], ca[is_fringe], cb[is_fringe]
     if r.size == 0:
         return label, np.zeros(label.shape, bool)
@@ -455,6 +471,18 @@ def dissolve_fringes(
     out = label.copy()
     out[ys, xs] = np.where(da <= db, ra, rb)
     return out, mask
+
+
+def settle_colors(palette: np.ndarray, label: np.ndarray, lab: np.ndarray, solid: np.ndarray) -> np.ndarray:
+    """Each color becomes the median of the solid pixels it ended up with, so it is a tone the area really has."""
+    out = palette.copy()
+    for i in range(len(palette)):
+        m = (label == i) & solid
+        if m.sum() < 8:
+            continue
+        pixels = lab[m]
+        out[i] = np.median(pixels[:: max(1, pixels.shape[0] // 100_000)], axis=0)
+    return out
 
 
 def upsample_lab(lab: np.ndarray) -> np.ndarray:
@@ -510,9 +538,17 @@ def _regions(label: np.ndarray, classes: int) -> tuple[np.ndarray, int]:
     return regions, total
 
 
-def absorb_specks(label, palette_all, min_area: int, keep_area: int, keep_de: float, rounds: int = 4) -> np.ndarray:
-    """Hand small pieces to the neighbor closest in color. A small piece that stands out keeps a lower limit."""
+def absorb_specks(
+    label, palette_all, min_area: int, keep_area: int, keep_de: float, rounds: int = 4,
+    faint_area: int = 0, faint_de: float = 0.0,
+) -> np.ndarray:
+    """Hand small pieces to the neighbor closest in color. A small piece that stands out keeps a lower limit.
+
+    A piece up to `faint_area` also goes when it barely differs from a neighbor: such blotches are texture.
+    """
     classes = len(palette_all)
+    base_area = min_area
+    min_area = max(min_area, faint_area)
     for _ in range(rounds):
         regions, total = _regions(label, classes)
         if total == 0:
@@ -548,6 +584,8 @@ def absorb_specks(label, palette_all, min_area: int, keep_area: int, keep_de: fl
         changed = False
         class_of = region_class.copy()
         for r, c, dist in zip(mapping_from.tolist(), mapping_to.tolist(), mapping_d.tolist()):
+            if area[r] >= base_area and dist >= faint_de:
+                continue
             if dist >= keep_de and area[r] >= keep_area:
                 continue
             class_of[r] = c

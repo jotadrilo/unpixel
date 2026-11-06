@@ -22,6 +22,8 @@ UNDER = 0.6  # how far, in source pixels, the color below a wall reaches under t
 SPECK_AREA = 12  # source pixels: smaller pieces are absorbed
 SPECK_KEEP_AREA = 4  # ... unless they stand out by SPECK_KEEP_DE, as a dark stitch does
 SPECK_KEEP_DE = 25.0
+FAINT_AREA = 60  # source pixels: a blotch this small and closer than FAINT_DE to a neighbor is texture
+FAINT_DE = 16.0
 
 
 @dataclass
@@ -338,12 +340,16 @@ def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int 
             else:
                 label, more = lab_mod.dissolve_fringes(label, lab, palette_all)
                 info["fringe_pixels"] = int(bands.sum() + more.sum())
+                settled = lab_mod.settle_colors(pal.lab, label, lab, ~transition & ~background.mask)
+                pal = lab_mod.PaletteInfo(settled, lab_mod.lab_to_srgb(lab_mod.from_perceptual(settled)),
+                                          pal.stop_distance, pal.worst_left, pal.log)
     with clock.stage("refine"):
         fine, fine_lab = lab_mod.refine_double(label, lab, pal.lab, background.lab)
     with clock.stage("specks"):
         palette_all = np.vstack([pal.lab, background.lab if bg_present else np.full((1, 3), 1e4, dtype=np.float32)])
         s2 = SCALE * SCALE
-        fine = lab_mod.absorb_specks(fine, palette_all, SPECK_AREA * s2, SPECK_KEEP_AREA * s2, SPECK_KEEP_DE)
+        fine = lab_mod.absorb_specks(fine, palette_all, SPECK_AREA * s2, SPECK_KEEP_AREA * s2, SPECK_KEEP_DE,
+                                      faint_area=FAINT_AREA * s2, faint_de=FAINT_DE)
     return fine, fine_lab, pal, background, palette_all, bg_present
 
 
@@ -374,7 +380,7 @@ def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_
                 palette_rgb = exact_colors
                 palette_lab = lab_mod.perceptual(srgb_to_lab(exact_colors))
         with clock.stage("background"):
-            background = lab_mod.find_background(lab)
+            background = lab_mod.find_background(lab, erode=False)
             has_background = background.lab is not None
             label = inverse.copy()
             palette_all = np.vstack([palette_lab, background.lab if has_background else np.full((1, 3), 1e4, dtype=np.float32)])

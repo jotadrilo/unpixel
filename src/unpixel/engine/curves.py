@@ -73,7 +73,7 @@ def find_corners(
     chains: list[np.ndarray],
     closed: np.ndarray,
     step: float,
-    scales=(0.8, 1.6, 3.0),
+    scales=(0.8, 1.5, 2.4),
     threshold: float = 50.0,
     min_gap: float = 3.0,
 ) -> dict[int, list[int]]:
@@ -84,14 +84,14 @@ def find_corners(
     """
     if not chains:
         return {}
-    pad = int(np.ceil(3 * scales[-1] / step)) + int(round(2 * scales[-1] / step)) + 2
+    pad = int(np.ceil(3 * scales[-1] / step)) + int(round(2.5 * scales[-1] / step)) + 4
     flat = Flat(chains, closed, pad)
     worst = None
     finest = None
     for s in scales:
         sigma = s / step
         blurred = flat.blur(sigma)
-        lag = max(1, int(round(1.6 * s / step)))
+        lag = max(1, int(round(2.5 * s / step)))
         angle = _turning(blurred, lag)
         if finest is None:
             finest = angle
@@ -122,6 +122,11 @@ def find_corners(
                 items[-1] = at
             continue
         items.append(at)
+    # A closed chain wraps: a corner at its seam can be found at both ends.
+    for k, items in out.items():
+        if closed[k] and len(items) > 1 and items[0] + flat.sizes[k] - items[-1] < gap:
+            drop = 0 if finest[flat.first[k] + items[0]] < finest[flat.first[k] + items[-1]] else -1
+            items.pop(drop)
     return out
 
 
@@ -131,7 +136,8 @@ def smooth_chains(chains: list[np.ndarray], closed: np.ndarray, sigmas: np.ndarr
     levels = np.unique(sigmas[sigmas > 0])
     if levels.size == 0:
         return out
-    pad = int(np.ceil(3 * levels.max())) + 1
+    # Two convolutions in a row reach twice the kernel's radius.
+    pad = 2 * int(np.ceil(3 * levels.max())) + 2
     flat = Flat(chains, closed, pad)
     for level in levels:
         once = flat.blur(float(level))
