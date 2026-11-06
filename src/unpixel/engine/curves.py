@@ -78,7 +78,7 @@ def find_corners(
     closed: np.ndarray,
     step: float,
     scales=(0.8, 1.5, 2.4),
-    threshold: float = 50.0,
+    threshold: tuple[float, float, float] = (60.0, 52.0, 48.0),
     min_gap: float = 3.0,
 ) -> dict[int, list[int]]:
     """Corners that stay corners at every scale, per chain. Scales are smoothing in source pixels.
@@ -92,7 +92,8 @@ def find_corners(
     flat = Flat(chains, closed, pad)
     worst = None
     finest = None
-    for s in scales:
+    limits = np.zeros(1)
+    for s, limit in zip(scales, threshold):
         sigma = s / step
         blurred = flat.blur(sigma)
         lag = max(1, int(round(2.5 * s / step)))
@@ -101,8 +102,10 @@ def find_corners(
             finest = angle
         spread = 2 * max(1, int(round(s / step))) + 1
         angle = ni.maximum_filter1d(angle, size=spread)
-        worst = angle if worst is None else np.minimum(worst, angle)
-    hit = worst >= threshold
+        # A blurred corner measures less the coarser the scale, so each scale has its own limit.
+        worst = angle >= limit if worst is None else worst & (angle >= limit)
+    del limits
+    hit = worst
     # Padding and seams never count.
     keep = np.zeros(hit.size, dtype=bool)
     owner = np.searchsorted(flat.starts, np.arange(hit.size), side="right") - 1

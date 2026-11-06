@@ -19,6 +19,7 @@ SOFT_SIGMA = 6.0  # source pixels, for walls across a soft gradient
 SOFT_WALL_DE = 2.5  # delta-E per source pixel: a wall with less contrast across it than this is soft
 FIT_TOLERANCE = 0.45  # source pixels
 UNDER = 1.0  # how far, in source pixels, the color below a wall reaches under the region above it
+SMALL_LOOP = 30.0  # source pixels of perimeter
 SPECK_AREA = 12  # source pixels: smaller pieces are absorbed
 SPECK_KEEP_AREA = 4  # ... unless they stand out by SPECK_KEEP_DE, as a dark stitch does
 SPECK_KEEP_DE = 25.0
@@ -206,10 +207,14 @@ def _trace(
         # Split at corners; each piece is pinned at both ends and smoothed alone.
         step = 0.82 / scale
         info["arcs"] = len(arcs)
+        ends = {v for arc in arcs if arc.start >= 0 for v in (arc.start, arc.end)}
+        info["junctions"] = [[round(float(vertex_xy[v][0]), 2), round(float(vertex_xy[v][1]), 2)] for v in sorted(ends)]
         corners = curves.find_corners(soft_chains, closed, step) if soft_chains else {}
         # A wall in a soft gradient has no real position to keep and no abrupt turn to respect.
         arc_soft = np.array(soft_steep, dtype=np.float64) < SOFT_WALL_DE
         corners = {k: v for k, v in corners.items() if not arc_soft[k]}
+        # A dot or a stitch stays round: a small closed shape has no drawn corners to respect.
+        corners = {k: v for k, v in corners.items() if not (closed[k] and len(soft_chains[k]) * step < SMALL_LOOP)}
         info["corners"] = sum(len(v) for v in corners.values())
         for k, cut in corners.items():
             soft_chains[k] = soft_chains[k].copy()

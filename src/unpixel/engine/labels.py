@@ -186,6 +186,8 @@ MODE_RADIUS = 5.0
 FILL_MIN_DE = 9.0
 HIGHLIGHT_MIN_DE = 12.0
 STOP_DE = 9.0  # nothing above the floor is farther than this from the palette: enough colors
+BEYOND_AREA_DE = 18.0
+BEYOND_AREA_SHARE = 0.002
 BEYOND_SOFT_DE = 26.0  # past the soft limit, a color must be this far from every other
 _ORIGIN = np.array([0.0, -128.0, -128.0], dtype=np.float32)
 
@@ -279,8 +281,10 @@ def build_palette(
             if far < stop:
                 break
             # Past the soft limit, only something truly far earns a color.
+            # Or a real area that nothing represents, such as a pair of red shoes.
             if len(centers) >= soft_max and far < BEYOND_SOFT_DE:
-                break
+                if not (alive & (d >= BEYOND_AREA_DE) & (mass >= BEYOND_AREA_SHARE * total)).any():
+                    break
         centers.append(means[pick])
         log.append(f"+{len(centers)} d={d[pick]:.1f} mass={mass[pick] / total * 100:.3f}%")
         d = np.minimum(d, np.sqrt(((means - means[pick]) ** 2).sum(-1)))

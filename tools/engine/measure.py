@@ -38,8 +38,14 @@ def _bezier_length(p0, p1, p2, p3, steps=12):
     return float(np.hypot(*(q[1:] - q[:-1]).T).sum())
 
 
-def analyze_paths(svg: str, width: int, height: int) -> dict:
-    """Paths, nodes, boundary length and turning angles from the SVG text."""
+def analyze_paths(svg: str, width: int, height: int, junctions=()) -> dict:
+    """Paths, nodes, boundary length and turning angles from the SVG text.
+
+    `junctions`, where known, are where three or more regions meet. A region's outline turns there by
+    construction, and the wall itself does not; those turns are counted apart from turns along a wall.
+    """
+    at_junction = {(round(float(x), 2), round(float(y), 2)) for x, y in junctions}
+    junction_turns: list[float] = []
     paths = traps = nodes = 0
     length = 0.0
     turns: list[float] = []
@@ -57,6 +63,7 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
             pos = np.zeros(2)
             ins: list = []
             outs: list = []
+            nodes_at: list = []
             lens: list = []
             starts = pos
             first_out = None
@@ -71,7 +78,12 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
                     if na < 1e-6 or nb < 1e-6:
                         continue
                     cos = float(np.clip(np.dot(a, b) / (na * nb), -1, 1))
-                    turns.append(float(np.degrees(np.arccos(cos))))
+                    angle = float(np.degrees(np.arccos(cos)))
+                    where = tuple(round(float(v), 2) for v in nodes_at[k])
+                    if where in at_junction:
+                        junction_turns.append(angle)
+                    else:
+                        turns.append(angle)
 
             while i < len(tokens):
                 t = tokens[i]
@@ -80,7 +92,7 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
                     pos = np.array([float(tokens[i]), float(tokens[i + 1])])
                     starts = pos
                     i += 2
-                    ins, outs, lens = [], [], []
+                    ins, outs, lens, nodes_at = [], [], [], []
                 elif t == "L" or t == "C":
                     if t == "L":
                         q = np.array([float(tokens[i]), float(tokens[i + 1])])
@@ -104,6 +116,7 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
                         or (pos[0] >= width and q[0] >= width)
                         or (pos[1] >= height and q[1] >= height)
                     )
+                    nodes_at.append(q)
                     if on_frame:
                         ins.append(None)
                         outs.append(None)
@@ -116,7 +129,7 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
                 elif t == "Z":
                     if ins:
                         close()
-                    ins, outs = [], []
+                    ins, outs, nodes_at = [], [], []
                     pos = starts
     turns_a = np.array(turns) if turns else np.zeros(1)
     return {
@@ -128,6 +141,7 @@ def analyze_paths(svg: str, width: int, height: int) -> dict:
         "sharp30_share": round(float((turns_a > 30).mean()), 4),
         "sharp30_per_1000px": round(1000.0 * float((turns_a > 30).sum()) / max(length, 1.0), 2),
         "sharp60_share": round(float((turns_a > 60).mean()), 4),
+        "junction_turns": len(junction_turns),
         "shapes_per_color": per_color,
     }
 
@@ -170,7 +184,7 @@ def main():
     for svg_path in sorted(glob.glob(f"{a.out}/*.svg")):
         stem = Path(svg_path).stem
         image, variant = stem.rsplit("-", 1)
-        found = glob.glob(f"{a.input}/{image}.*")
+        found = [f for d in a.input.split(",") for f in glob.glob(f"{d}/{image}.*")]
         if not found:
             continue
         src = Image.open(found[0]).convert("RGBA")
@@ -179,7 +193,9 @@ def main():
         source = np.asarray(base.convert("RGB"))
         h, w = source.shape[:2]
         text = Path(svg_path).read_text(encoding="utf-8")
-        m = analyze_paths(text, w, h)
+        sidecar = Path(a.out) / f"{stem}.json"
+        side = json.loads(sidecar.read_text()) if sidecar.exists() else {}
+        m = analyze_paths(text, w, h, side.get("info", {}).get("junctions", ()))
         rgba = np.asarray(render_png(svg_path, w, h))
         flat = Image.new("RGBA", (w, h), (255, 255, 255, 255))
         flat.alpha_composite(Image.fromarray(rgba))
@@ -188,15 +204,13 @@ def main():
                "mean_de": round(float(dE.mean()), 2), "p95_de": round(float(np.percentile(dE, 95)), 2),
                "colors": len(set(c for c, _ in _GROUP.findall(text))),
                "area_percent": rendered_colors(rgba, text), "hairlines": hairlines(svg_path, w, h, scales)}
-        sidecar = Path(a.out) / f"{stem}.json"
-        if sidecar.exists():
-            data = json.loads(sidecar.read_text())
-            row.update(seconds=data["seconds"], peak_rss_mb=data["peak_rss_mb"], stages=data.get("stages", {}))
+        if side:
+            row.update(seconds=side["seconds"], peak_rss_mb=side["peak_rss_mb"], stages=side.get("stages", {}))
         results.append(row)
         print(f"{image:11s} {variant:8s} {row.get('seconds', 0):6.1f}s {row.get('peak_rss_mb', 0):5.0f}MB c={row['colors']:2d} "
               f"paths={row['paths']:5d} nodes={row['nodes']:6d} n/100px={row['nodes_per_100px']:5.2f} "
               f"sharp30={100 * row['sharp30_share']:5.1f}%/{row['sharp30_per_1000px']:5.1f}perK {row['svg_kb']:6.0f}KB dE={row['mean_de']:5.2f} "
-              f"hair={[v['pixels'] for v in row['hairlines'].values()]}", flush=True)
+              f"hair={[v['pixels'] for v in row['hairlines'].values()]} minA={[v['min_alpha'] for v in row['hairlines'].values()]} junc={row['junction_turns']}", flush=True)
     Path(a.out, "measurements.json").write_text(json.dumps(results, indent=1))
 
 
