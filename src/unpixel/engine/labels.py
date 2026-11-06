@@ -701,6 +701,35 @@ def background_extras(lab: np.ndarray, solid: np.ndarray, background: Background
     return out
 
 
+def drop_floating_pale(label: np.ndarray, palette_all: np.ndarray, max_de: float, max_thickness: float) -> tuple[np.ndarray, int]:
+    """Thin pale pieces adrift on the background are what is left of a broken sticker line. They go with it."""
+    bg = len(palette_all) - 1
+    regions, total = _regions(label, len(palette_all))
+    if total == 0:
+        return label, 0
+    area = np.bincount(regions.ravel(), minlength=total + 1).astype(np.float64)
+    region_class = np.zeros(total + 1, dtype=np.int32)
+    region_class[regions.ravel()] = label.ravel()
+    a = np.concatenate([regions[:, :-1].ravel(), regions[:-1, :].ravel()])
+    b = np.concatenate([regions[:, 1:].ravel(), regions[1:, :].ravel()])
+    hit = a != b
+    froms, tos = np.concatenate([a[hit], b[hit]]), np.concatenate([b[hit], a[hit]])
+    perimeter = np.bincount(froms, minlength=total + 1).astype(np.float64)
+    touches_other = np.zeros(total + 1, dtype=bool)
+    touches_other[froms[region_class[tos] != bg]] = True
+    touches_bg = np.zeros(total + 1, dtype=bool)
+    touches_bg[froms[region_class[tos] == bg]] = True
+    d = np.sqrt(((palette_all[region_class] - palette_all[bg]) ** 2).sum(-1))
+    drop = touches_bg & ~touches_other & (d <= max_de) & (2.0 * area <= max_thickness * np.maximum(perimeter, 1.0))
+    drop[region_class == bg] = False
+    drop[0] = False
+    if not drop.any():
+        return label, 0
+    mapping = region_class.copy()
+    mapping[drop] = bg
+    return mapping[regions].astype(label.dtype), int(drop.sum())
+
+
 def settle_colors(palette: np.ndarray, label: np.ndarray, lab: np.ndarray, solid: np.ndarray) -> np.ndarray:
     """Each color becomes the median of the solid pixels it ended up with, so it is a tone the area really has."""
     out = palette.copy()

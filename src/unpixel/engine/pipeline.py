@@ -33,6 +33,8 @@ SMALL_LOOP = 30.0  # source pixels of perimeter
 SPECK_AREA = 12  # source pixels: smaller pieces are absorbed
 SPECK_KEEP_AREA = 4  # ... unless they stand out by SPECK_KEEP_DE, as a dark stitch does
 SPECK_KEEP_DE = 25.0
+FLOATING_PALE_DE = 26.0
+FLOATING_THICKNESS = 6.0  # source pixels
 SPECKLE_AREA = 40  # source pixels
 SPECKLE_DE = 32.0
 SPECKLE_RADIUS = 30.0  # source pixels
@@ -425,6 +427,9 @@ def clean_labels(
                                       faint_area=int(FAINT_AREA * s2 * size), faint_de=FAINT_DE)
         fine, speckle = lab_mod.dissolve_speckle(fine, palette_all, SPECKLE_AREA * s2, SPECKLE_DE, SPECKLE_RADIUS * scale, SPECKLE_CROWD)
         info["speckle_islands"] = speckle
+        if bg_present:
+            fine, adrift = lab_mod.drop_floating_pale(fine, palette_all, FLOATING_PALE_DE, FLOATING_THICKNESS * scale)
+            info["floating_pale"] = adrift
     flat = ~ni.binary_dilation(transition, iterations=1)
     return fine, fine_lab, pal, background, palette_all, bg_present, flat
 

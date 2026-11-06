@@ -355,3 +355,16 @@ def test_cli_pixel_art_through_new_engine(tmp_path):
     text = Path(r["svg"]).read_text()
     assert 'viewBox="0 0 256 256"' in text
     assert "C" not in "".join(re.findall(r' d="([^"]+)"', text))
+
+
+def test_thin_pale_pieces_adrift_on_the_background_go_with_it():
+    pal = np.array([[90.0, 0, 0], [10.0, 0, 0], [99.0, 0, 0]], dtype=np.float32)
+    label = np.full((200, 400), 2, dtype=np.int16)
+    label[50:53, 50:200] = 0  # a pale thread adrift
+    label[100:103, 50:200] = 1  # a dark thread adrift, a real stroke
+    label[150:190, 50:90] = 0  # a pale blob, too thick to be a line
+    out, count = labels.drop_floating_pale(label, pal, 26.0, 6.0)
+    assert count == 1
+    assert (out[50:53, 50:200] == 2).all()
+    assert (out[100:103, 50:200] == 1).all()
+    assert (out[160, 60] == 0)
