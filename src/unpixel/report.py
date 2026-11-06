@@ -77,6 +77,8 @@ def _detail_boxes(rgb: np.ndarray, count: int = 4) -> list[tuple[int, int, int, 
     """Pick the busiest areas of the source: where fine detail is most likely to suffer."""
     h, w = rgb.shape[:2]
     gray = rgb.astype(np.float32).mean(-1)
+    if min(gray.shape) < 2:
+        return []  # a single row or column has no slope to measure
     gy, gx = np.gradient(gray)
     energy = np.hypot(gx, gy) > 12
     side = max(32, min(w, h) // 4)

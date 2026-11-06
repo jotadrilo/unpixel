@@ -53,7 +53,7 @@ def _pixel_art(rgb, kind, options, clock, info):
     else:
         palette = lab_mod.perceptual(srgb_to_lab(colors))
     asked = _lab(options.background_rgb) if options.background == "color" else None
-    background = lab_mod.find_background(lab, erode=False, mode=options.background, color=asked)
+    background = lab_mod.nothing_left_guard(lab_mod.find_background(lab, erode=False, mode=options.background, color=asked))
     bg_row = background.lab if background.lab is not None else np.full((1, 3), 1e4, dtype=np.float32)
     label = inverse.copy()
     if background.lab is not None:

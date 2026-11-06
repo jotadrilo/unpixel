@@ -391,7 +391,7 @@ def clean_labels(
         asked = None
         if background_mode == "color":
             asked = lab_mod.perceptual(srgb_to_lab(np.array(background_rgb, dtype=np.float32)))
-        background = lab_mod.find_background(lab, mode=background_mode, color=asked)
+        background = lab_mod.nothing_left_guard(lab_mod.find_background(lab, mode=background_mode, color=asked))
         bg_present = background.lab is not None
     bg_row = background.lab if bg_present else np.full((1, 3), 1e4, dtype=np.float32)
     # Two passes: edge bands found after the first assignment do not vote for the final palette.

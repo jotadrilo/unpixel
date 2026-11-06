@@ -402,3 +402,16 @@ def test_assigning_in_stripes_matches_assigning_whole(monkeypatch):
     assert whole[63, 20] == 1
     monkeypatch.setattr(labels, "STRIPE_PIXELS", 64 * 40)
     np.testing.assert_array_equal(labels.assign_large(lab, transition, background, palette), whole)
+
+
+@pytest.mark.parametrize("size", [(1, 1), (2, 2), (3, 3), (1, 50), (50, 1), (4, 200), (200, 200)])
+def test_a_single_color_image_keeps_its_color_at_any_size(tmp_path, size, capsys):
+    from unpixel.cli import main
+
+    source = tmp_path / "solid.png"
+    Image.new("RGB", size, (120, 40, 200)).save(source)
+    assert main(["--engine", "new", "--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
+    report = __import__("json").loads(capsys.readouterr().out)
+    assert [layer["color"] for layer in report["layers"]] == ["#7828C8"]
+    assert report["background_removed"] is None
+    assert any("one color" in warning for warning in report["warnings"])

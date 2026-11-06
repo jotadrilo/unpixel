@@ -160,6 +160,13 @@ LINE_SHARE = 0.001
 LINE_PIECE = 0.0005
 
 
+def nothing_left_guard(background: Background) -> Background:
+    """A background that would take the whole image is not one: an empty result helps nobody."""
+    if background.lab is None or not background.mask.all():
+        return background
+    return Background(np.zeros(background.mask.shape, bool), None, note="The whole image is one color, so it was kept instead of being removed as background.")
+
+
 def find_background(
     lab: np.ndarray, border_share: float = 0.85, erode: bool = True, mode: str = "auto", color: np.ndarray | None = None
 ) -> Background:
@@ -541,6 +548,8 @@ def highlight_mask(lab: np.ndarray, solid: np.ndarray, lift: float = 10.0, size:
 
 def flatten_gradients(lab: np.ndarray, edge: float = 1.5, sigma: float = 4.0, reach: float = 8.0) -> np.ndarray:
     """Blur away from edges, so that bands across a soft gradient follow the gradient and not its grain."""
+    if min(lab.shape[:2]) < 2:
+        return lab  # a single row or column has no slope to measure
     grad = np.zeros(lab.shape[:2], dtype=np.float32)
     for i in range(3):
         gy, gx = np.gradient(lab[..., i])
