@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import numpy as np
+from PIL import Image
 from scipy import ndimage as ni
 
 from ..color import srgb_to_lab
@@ -14,6 +15,8 @@ from . import classify as classify_mod
 from . import curves, labels as lab_mod, planar, svgout
 
 SCALE = 2
+DOUBLE_LIMIT = 4_000_000  # above this many pixels the class map stays at one to one
+WORKING_LIMIT = 12_000_000  # above this the image is reduced to work on, and the curves scaled back
 SMOOTH_SIGMA = 1.3  # source pixels
 SOFT_SIGMA = 6.0  # source pixels, for walls across a soft gradient
 SOFT_WALL_DE = 2.5  # delta-E per source pixel: a wall with less contrast across it than this is soft
@@ -154,6 +157,7 @@ def _trace(
     exact: bool,
     under: float,
     info: dict,
+    output_scale: tuple[float, float] = (1.0, 1.0),
 ) -> str:
     classes = len(palette_all)
     bg_class = classes - 1 if has_background else -1
@@ -219,7 +223,10 @@ def _trace(
         step = 0.82 / scale
         info["arcs"] = len(arcs)
         ends = {v for arc in arcs if arc.start >= 0 for v in (arc.start, arc.end)}
-        info["junctions"] = [[round(float(vertex_xy[v][0]), 2), round(float(vertex_xy[v][1]), 2)] for v in sorted(ends)]
+        info["junctions"] = [
+            [round(float(vertex_xy[v][0]) * output_scale[0], 2), round(float(vertex_xy[v][1]) * output_scale[1], 2)]
+            for v in sorted(ends)
+        ]
         corners = curves.find_corners(soft_chains, closed, step) if soft_chains else {}
         # A wall in a soft gradient has no real position to keep and no abrupt turn to respect.
         arc_soft = np.array(soft_steep, dtype=np.float64) < SOFT_WALL_DE
@@ -272,7 +279,8 @@ def _trace(
         p_closed = np.array(piece_closed, dtype=bool)
 
         lengths = np.array([len(p) for p in pieces], dtype=np.float64) * step
-        wanted = np.where(arc_soft[np.array(piece_owner, dtype=np.int64)], SOFT_SIGMA, SMOOTH_SIGMA) if pieces else np.zeros(0)
+        sigma = SMOOTH_SIGMA * info.get("detail_factor", 1.0)
+        wanted = np.where(arc_soft[np.array(piece_owner, dtype=np.int64)], SOFT_SIGMA, sigma) if pieces else np.zeros(0)
         limit = np.minimum(wanted, lengths / 6.0)
         # Quantized so that one convolution serves many pieces.
         sigmas = np.round(limit / step * 2) / 2
@@ -328,6 +336,10 @@ def _trace(
             np.concatenate(all_kinds) if all_kinds else np.zeros(0, dtype=np.int8),
             np.zeros(1, dtype=np.int64),
         )
+        # A large image is traced at its working size; here it goes back to the source's.
+        dx, dy = output_scale
+        merged.points[..., 0] *= dx
+        merged.points[..., 1] *= dy
     with clock.stage("svg"):
         class_area = np.bincount(region_class[1:], weights=area[1:], minlength=classes)
         class_perimeter = np.bincount(region_class[1:], weights=perimeter[1:].astype(np.float64), minlength=classes)
@@ -335,7 +347,7 @@ def _trace(
             class_area[bg_class] = 0
         z = _order_by_thickness(class_area, class_perimeter) if under > 0 else _order_layers(classes, None, None, class_area)
         svg, layers = svgout.write_svg(
-            pmap, merged, arc_chain, region_class, (area / scale**2, perimeter / scale), colors, width, height, title, z, under
+            pmap, merged, arc_chain, region_class, (area * (dx / scale) ** 2, perimeter * dx / scale), colors, width, height, title, z, under * dx
         )
         total_paint = max(float(class_area.sum()), 1.0)
         for layer, cls in zip(layers, sorted((c for c in range(classes) if c != bg_class and class_area[c] > 0),
@@ -354,17 +366,30 @@ def _exact_palette(rgb: np.ndarray, limit: int):
     return colors.astype(np.float32), inverse.reshape(rgb.shape[:2]).astype(np.int16)
 
 
-def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int | None = None):
-    """Soft or hard artwork to a class map at twice the size. Returns what contours and legacy tracing need."""
+def clean_labels(
+    rgb: np.ndarray,
+    clock: _Clock,
+    info: dict,
+    colors_wanted: int | None = None,
+    background_mode: str = "auto",
+    background_rgb=None,
+    scale: int = SCALE,
+):
+    """Soft or hard artwork to a class map at `scale` times the size. Returns what contours and legacy tracing need."""
+    detail = info.get("detail_factor", 1.0)
     with clock.stage("denoise"):
         lab_raw = lab_mod.perceptual(srgb_to_lab(rgb))
         hard = info["kind"] == "hard"
         lab = lab_raw if hard else lab_mod.flatten_gradients(lab_mod.bilateral(lab_raw))
+        del lab_raw
     with clock.stage("antialiasing"):
         transition = lab_mod.transition_mask(lab)
         info["transition_share"] = round(float(transition.mean()), 4)
     with clock.stage("background"):
-        background = lab_mod.find_background(lab)
+        asked = None
+        if background_mode == "color":
+            asked = lab_mod.perceptual(srgb_to_lab(np.array(background_rgb, dtype=np.float32)))
+        background = lab_mod.find_background(lab, mode=background_mode, color=asked)
         bg_present = background.lab is not None
     bg_row = background.lab if bg_present else np.full((1, 3), 1e4, dtype=np.float32)
     # Two passes: edge bands found after the first assignment do not vote for the final palette.
@@ -375,7 +400,7 @@ def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int 
                                         extras=lab_mod.background_extras(lab, solid, background))
             info["palette_log"] = pal.log
         with clock.stage("assign"):
-            label = lab_mod.assign(lab, transition, background, pal.lab, rounds=1 if attempt == 0 else 3)
+            label = lab_mod.assign_large(lab, transition, background, pal.lab, rounds=1 if attempt == 0 else 3)
         with clock.stage("fringes"):
             palette_all = np.vstack([pal.lab, bg_row])
             label, bands = lab_mod.dissolve_fringes(label, lab, palette_all)
@@ -388,20 +413,33 @@ def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int 
                 pal = lab_mod.PaletteInfo(settled, lab_mod.lab_to_srgb(lab_mod.from_perceptual(settled)),
                                           pal.stop_distance, pal.worst_left, pal.log)
     with clock.stage("refine"):
-        fine, fine_lab = lab_mod.refine_double(label, lab, pal.lab, background.lab)
-    with clock.stage("specks"):
-        palette_all = np.vstack([pal.lab, background.lab if bg_present else np.full((1, 3), 1e4, dtype=np.float32)])
-        s2 = SCALE * SCALE
-        fine = lab_mod.absorb_specks(fine, palette_all, SPECK_AREA * s2, SPECK_KEEP_AREA * s2, SPECK_KEEP_DE,
-                                      faint_area=FAINT_AREA * s2, faint_de=FAINT_DE)
-        if bg_present:
-            classes_all = palette_all
+        if scale == 2:
+            fine, fine_lab = lab_mod.refine_double(label, lab, pal.lab, background.lab)
         else:
-            # With no background, its slot must not count as a surround, and nothing has that class.
-            classes_all = palette_all
-        fine, speckle = lab_mod.dissolve_speckle(fine, classes_all, SPECKLE_AREA * s2, SPECKLE_DE, SPECKLE_RADIUS * SCALE, SPECKLE_CROWD)
+            fine, fine_lab = label, lab
+    with clock.stage("specks"):
+        palette_all = np.vstack([pal.lab, bg_row])
+        s2 = scale * scale
+        size = detail * detail
+        fine = lab_mod.absorb_specks(fine, palette_all, int(SPECK_AREA * s2 * size), int(SPECK_KEEP_AREA * s2 * size), SPECK_KEEP_DE,
+                                      faint_area=int(FAINT_AREA * s2 * size), faint_de=FAINT_DE)
+        fine, speckle = lab_mod.dissolve_speckle(fine, palette_all, SPECKLE_AREA * s2, SPECKLE_DE, SPECKLE_RADIUS * scale, SPECKLE_CROWD)
         info["speckle_islands"] = speckle
-    return fine, fine_lab, pal, background, palette_all, bg_present
+    flat = ~ni.binary_dilation(transition, iterations=1)
+    return fine, fine_lab, pal, background, palette_all, bg_present, flat
+
+
+def working_image(rgb: np.ndarray) -> tuple[np.ndarray, int]:
+    """The image to work on, and the class map's scale. Large images give up the double map, then resolution."""
+    h, w = rgb.shape[:2]
+    pixels = h * w
+    if pixels <= DOUBLE_LIMIT:
+        return rgb, 2
+    if pixels <= WORKING_LIMIT:
+        return rgb, 1
+    k = (WORKING_LIMIT / pixels) ** 0.5
+    size = (max(1, int(round(w * k))), max(1, int(round(h * k))))
+    return np.asarray(Image.fromarray(rgb).resize(size, Image.BOX)), 1
 
 
 def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_wanted: int | None = None) -> Result:
@@ -437,17 +475,15 @@ def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_
             palette_all = np.vstack([palette_lab, background.lab if has_background else np.full((1, 3), 1e4, dtype=np.float32)])
             if has_background:
                 label[background.mask] = len(palette_lab)
-        svg = _trace(label, None, palette_all, [tuple(c) for c in palette_rgb.tolist()], width, height, 1, title,
+        # A class pixel is a logical pixel, so 1 / block source pixels per grid unit.
+        svg = _trace(label, None, palette_all, [tuple(c) for c in palette_rgb.tolist()], width, height, 1.0 / block, title,
                      clock, has_background, True, under, info)
-        # Back to the source's size: pixel art was traced at one point per logical pixel.
-        if block > 1:
-            svg = svg.replace(
-                f'viewBox="0 0 {width} {height}"', f'viewBox="0 0 {small.shape[1]} {small.shape[0]}"'
-            )
         return Result(svg, width, height, kind.name, [tuple(int(round(v)) for v in c) for c in palette_rgb.tolist()],
                       label, 1, has_background, clock.t, info)
 
-    fine, fine_lab, pal, background, palette_all, bg_present = clean_labels(rgb, clock, info, colors_wanted)
+    work, scale = working_image(rgb)
+    out_x, out_y = width / work.shape[1], height / work.shape[0]
+    fine, fine_lab, pal, background, palette_all, bg_present, _flat = clean_labels(work, clock, info, colors_wanted, scale=scale)
     colors = [tuple(int(round(float(v))) for v in c) for c in pal.rgb]
     if variant == "labels":
         from ..vectorize import build_svg
@@ -461,10 +497,11 @@ def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_
             out = _smooth_partition(out, classes, 2.0)
             svg, layers = build_svg(out, colors, width, height, "stacked", 30, title)
             info["layers"] = layers
-        return Result(svg, width, height, kind.name, colors, fine, SCALE, bg_present, clock.t, info)
+        return Result(svg, width, height, kind.name, colors, fine, scale, bg_present, clock.t, info)
 
-    svg = _trace(fine, fine_lab, palette_all, colors, width, height, SCALE, title, clock, bg_present, False, under, info)
-    return Result(svg, width, height, kind.name, colors, fine, SCALE, bg_present, clock.t, info)
+    svg = _trace(fine, fine_lab, palette_all, colors, width, height, scale, title, clock, bg_present, False, under, info,
+                 output_scale=(out_x, out_y))
+    return Result(svg, width, height, kind.name, colors, fine, scale, bg_present, clock.t, info)
 
 
 def run_palette_only(rgb: np.ndarray, title: str = "image") -> Result:

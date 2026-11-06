@@ -273,3 +273,85 @@ def test_crowded_faint_dots_dissolve_and_strong_or_lone_marks_stay():
     assert (out[50:54, 20:24] == 0).all()
     assert (out[150:154, 20:24] == 2).all()
     assert (out[100:104, 350:354] == 1).all()
+
+
+def run_cli(tmp_path, image, *args):
+    import io
+    import json as _json
+    from contextlib import redirect_stdout
+
+    from unpixel.cli import main
+
+    source = tmp_path / "in.png"
+    image.save(source)
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        code = main([str(source), "--engine", "new", "--json", "--force", *[str(a) for a in args]])
+    return code, _json.loads(buffer.getvalue())
+
+
+def ring_image() -> Image.Image:
+    im = Image.new("RGB", (500, 500), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    d.ellipse((60, 60, 440, 440), fill=(20, 20, 30))
+    d.ellipse((130, 130, 370, 370), fill=(250, 200, 40))
+    d.ellipse((200, 200, 300, 300), fill=(255, 255, 255))
+    return Image.fromarray(soft(im))
+
+
+def test_cli_new_engine_end_to_end_writes_json_svg_preview_and_report(tmp_path):
+    code, r = run_cli(tmp_path, ring_image())
+    assert code == 0 and r["status"] == "ok"
+    assert Path(r["svg"]).exists() and Path(r["preview"]).exists() and Path(r["report"]).exists()
+    assert len(r["layers"]) == 3  # dark, yellow, and the white enclosed in the ring
+    assert r["background_removed"] is not None
+    assert any("--also-transparent" in w for w in r["warnings"])
+    assert all("area_percent" in layer for layer in r["layers"])
+
+
+def test_cli_new_engine_color_count(tmp_path):
+    code, r = run_cli(tmp_path, ring_image(), "--colors", 2)
+    assert code == 0 and len(r["layers"]) == 2
+
+
+def test_cli_new_engine_exact_palette_recolors(tmp_path):
+    code, r = run_cli(tmp_path, ring_image(), "--colors", "#000000,#FF0000")
+    assert code == 0
+    assert {l["color"] for l in r["layers"]} <= {"#000000", "#FF0000"}
+
+
+def test_cli_new_engine_also_transparent_and_background(tmp_path):
+    code, first = run_cli(tmp_path, ring_image())
+    white = [l["color"] for l in first["layers"] if l["color"].startswith("#F") and int(l["color"][3:5], 16) > 240][0]
+    code, r = run_cli(tmp_path, ring_image(), "--also-transparent", white)
+    assert code == 0 and white not in {l["color"] for l in r["layers"]}
+    code, keep = run_cli(tmp_path, ring_image(), "--background", "keep")
+    assert code == 0 and keep["background_removed"] is None
+    code, named = run_cli(tmp_path, ring_image(), "--background", "#FFFFFF")
+    assert code == 0 and named["background_removed"] is not None
+    code, miss = run_cli(tmp_path, ring_image(), "--background", "#00FF00")
+    assert code == 0 and any("not found" in w for w in miss["warnings"])
+
+
+@pytest.mark.parametrize("args", [("--outline", "lines"), ("--outline", "edges", "--outline-width", 3), ("--layers", "cutout")])
+def test_cli_new_engine_outline_and_layers(tmp_path, args):
+    code, r = run_cli(tmp_path, ring_image(), *args)
+    assert code == 0 and r["status"] == "ok" and r["layers"]
+    if args[0] == "--outline":
+        assert len(r["layers"]) == 1 and r["layers"][0]["color"] == "#000000"
+    if args[0] == "--layers":
+        assert 'class="trap"' not in Path(r["svg"]).read_text()
+
+
+def test_cli_default_engine_is_unchanged(tmp_path, capsys):
+    from unpixel.cli import build_parser
+
+    assert build_parser().parse_args(["x.png"]).engine == "classic"
+
+
+def test_cli_pixel_art_through_new_engine(tmp_path):
+    code, r = run_cli(tmp_path, synth.pixel_art(16))
+    assert code == 0
+    text = Path(r["svg"]).read_text()
+    assert 'viewBox="0 0 256 256"' in text
+    assert "C" not in "".join(re.findall(r' d="([^"]+)"', text))

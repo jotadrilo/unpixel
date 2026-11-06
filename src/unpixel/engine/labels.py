@@ -138,9 +138,13 @@ class Background:
     mask: np.ndarray  # pixels the flood reached
     lab: np.ndarray | None  # its color, or None when nothing was removed
     near: np.ndarray | None = None  # pixels alike enough to the background color to join it at an edge
+    note: str | None = None  # why nothing was removed, for the user
 
 
 HALO_DE = 5.0
+ASKED_DE = 15.0  # how far from a color the user named the flood may go
+STRIPE_PIXELS = 3_000_000  # assign in stripes above this, as the cost per color is held in memory
+STRIPE_MARGIN = 8
 INTERIOR_DE = 5.0
 INTERIOR_SHARE = 0.0005
 LINE_REACH = 4
@@ -152,24 +156,40 @@ LINE_SHARE = 0.001
 LINE_PIECE = 0.0005
 
 
-def find_background(lab: np.ndarray, border_share: float = 0.85, erode: bool = True) -> Background:
-    """Flood from the border through pixels alike to the border's dominant color.
+def find_background(
+    lab: np.ndarray, border_share: float = 0.85, erode: bool = True, mode: str = "auto", color: np.ndarray | None = None
+) -> Background:
+    """Flood from the border through pixels alike to the border's dominant color, or the color asked for.
 
     The gate is narrow, set by the noise of the border itself. So a sticker's white stays out of the flood
     wherever it is distinct, and a one-pixel opening does not let the flood through.
     """
+    empty = np.zeros(lab.shape[:2], bool)
+    if mode == "keep":
+        return Background(empty, None)
     ring = np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]])
-    center = np.median(ring, axis=0)
-    dist = np.sqrt(((ring - center) ** 2).sum(-1))
-    close = dist <= 6.0
-    if close.mean() < border_share:
-        return Background(np.zeros(lab.shape[:2], bool), None)
-    center = ring[close].mean(0)
-    dist = np.sqrt(((ring - center) ** 2).sum(-1))
-    tau = float(np.clip(np.percentile(dist[dist <= 6.0], 99) + 0.5, 2.0, 6.0))
+    if mode == "color":
+        center = np.asarray(color, dtype=np.float32)
+        dist = np.sqrt(((ring - center) ** 2).sum(-1))
+        if not (dist <= ASKED_DE).any():
+            return Background(empty, None, note="The requested background color was not found on the image border; nothing removed.")
+        tau = ASKED_DE
+    else:
+        center = np.median(ring, axis=0)
+        dist = np.sqrt(((ring - center) ** 2).sum(-1))
+        close = dist <= 6.0
+        if close.mean() < border_share:
+            return Background(
+                empty, None,
+                note=f"The image border is not one uniform color (dominant color covers {close.mean():.0%}), so no "
+                "background was removed. Pass --background '#RRGGBB' to name it.",
+            )
+        center = ring[close].mean(0)
+        dist = np.sqrt(((ring - center) ** 2).sum(-1))
+        tau = float(np.clip(np.percentile(dist[dist <= 6.0], 99) + 0.5, 2.0, 6.0))
+        # A pale halo around the artwork is the background too; a sticker's border is walled off by its line.
+        tau = max(tau, HALO_DE)
     d = np.sqrt(((lab - center) ** 2).sum(-1))
-    # A pale halo around the artwork is the background too; a sticker's border is walled off by its line.
-    tau = max(tau, HALO_DE)
     near = d <= tau
     core = ni.binary_erosion(near, iterations=1, border_value=1) if erode else near
     parts, _ = ni.label(core)
@@ -416,6 +436,22 @@ def _prune(centers, means, weights, target, log) -> np.ndarray:
         log.append(f"-pruned {small} d={dist[small].min():.1f} area={area[small] / weights.sum() * 100:.3f}%")
         centers = np.delete(centers, small, axis=0)
     return centers
+
+
+def assign_large(lab, transition, background, palette, smoothness: float = 5.0, rounds: int = 3) -> np.ndarray:
+    """`assign` in stripes, with a margin the window and the vote cannot see past, to bound memory."""
+    h, w = lab.shape[:2]
+    if h * w <= STRIPE_PIXELS:
+        return assign(lab, transition, background, palette, smoothness, rounds)
+    rows = max(64, STRIPE_PIXELS // w)
+    out = np.empty((h, w), dtype=np.int16)
+    for top in range(0, h, rows):
+        y0, y1 = max(0, top - STRIPE_MARGIN), min(h, top + rows + STRIPE_MARGIN)
+        band = Background(background.mask[y0:y1], background.lab)
+        part = assign(lab[y0:y1], transition[y0:y1], band, palette, smoothness, rounds)
+        stop = min(h, top + rows)
+        out[top:stop] = part[top - y0 : stop - y0]
+    return out
 
 
 def assign(

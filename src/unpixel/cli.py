@@ -36,6 +36,7 @@ class Options:
     outline: str | None = None
     outline_width: float = 2.0
     outline_color: tuple[int, int, int] = (0, 0, 0)
+    engine: str = "classic"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,6 +72,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="line width for --outline edges, in source pixels. Default: 2")
     parser.add_argument("--outline-color", metavar="#RRGGBB",
                         help="line color for --outline. Default: #000000")
+    parser.add_argument("--engine", choices=["classic", "new"], default="classic",
+                        help="'new' tries the prototype color and contour engine: it never refuses an image, and shares "
+                             "one curve per wall. Default: classic")
     parser.add_argument("--preview-background", metavar="#RRGGBB",
                         help="color to show the result on in the preview and report, such as the surface it will "
                              "go on. It is not added to the SVG. Default: a color contrasting with the artwork")
@@ -86,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _options(args, parser) -> Options:
-    options = Options(detail=args.detail, layers=args.layers, outline=args.outline)
+    options = Options(detail=args.detail, layers=args.layers, outline=args.outline, engine=args.engine)
     if args.outline_width is not None:
         if args.outline != "edges":
             parser.error("--outline-width needs --outline edges")
@@ -164,7 +168,13 @@ def main(argv: list[str] | None = None) -> int:
         print_header(out, args.input.name, width, height, spaced=show_progress)
     try:
         with stage(err, "Finding colors and background", show_progress):
-            seg = segment(source, options)
+            context = None
+            if options.engine == "new":
+                from .engine.adapter import segment_new  # only then: the classic path stays as it was
+
+                seg, context = segment_new(source, options)
+            else:
+                seg = segment(source, options)
     except UnsuitableImage as error:
         return _fail(args, 3, f"image not suitable for flat-color tracing: {error}")
     except InvalidRequest as error:
@@ -174,8 +184,14 @@ def main(argv: list[str] | None = None) -> int:
         seg = apply_outline(seg, options.outline, options.outline_width, options.outline_color)
 
     with stage(err, "Tracing shapes", show_progress):
-        svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,
-                                html.escape(args.input.stem))
+        if context is not None:
+            from .engine.adapter import trace_new
+
+            svg, layers = trace_new(seg, context, width, height, options.layers, html.escape(args.input.stem),
+                                    outlined=bool(options.outline))
+        else:
+            svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,
+                                    html.escape(args.input.stem))
     svg_path.parent.mkdir(parents=True, exist_ok=True)
     svg_path.write_text(svg, encoding="utf-8")
 
