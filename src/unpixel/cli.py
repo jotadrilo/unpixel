@@ -24,6 +24,9 @@ from .vectorize import build_svg
 Image.MAX_IMAGE_PIXELS = None
 
 
+# Below this, a hole in the artwork is a pinhole at a junction: known, and no reason to send anyone to the preview.
+VISIBLE_HOLE_PIXELS = 20
+
 @dataclass
 class Options:
     background: str = "auto"
@@ -202,7 +205,16 @@ def main(argv: list[str] | None = None) -> int:
         with stage(err, "Writing preview and report", show_progress):
             write_preview(svg, width, height, background, preview_path)
             write_report(source, svg, seg, metrics, hotspots, layers, background, args.input.name, report_path)
-    if metrics["opaque_pixels_in_background"] or metrics["transparent_pixels_in_artwork"]:
+    if options.engine == "new":
+        # Shapes share their walls, so a trace of see-through along one is antialiasing. Only a real hole counts.
+        if metrics["opaque_pixels_in_background"] or metrics["holes_in_artwork"] >= VISIBLE_HOLE_PIXELS:
+            seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
+        elif options.layers == "cutout" and metrics["transparent_pixels_in_artwork"]:
+            seg.warnings.append(
+                "Cutout layers meet edge to edge, so a faint seam can show where colors meet. Use the default, "
+                "stacked, unless colors must not overlap."
+            )
+    elif metrics["opaque_pixels_in_background"] or metrics["transparent_pixels_in_artwork"]:
         if options.layers == "cutout" and not metrics["opaque_pixels_in_background"]:
             seg.warnings.append(
                 f"Cutout layers leave tiny gaps where colors meet ({metrics['transparent_percent']}% of the image is "

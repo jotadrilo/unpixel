@@ -66,6 +66,7 @@ def verify(svg: str, seg, width: int, height: int) -> tuple[dict, np.ndarray, li
         "expected_transparent_percent": round(100.0 * float(expected_clear.mean()), 2),
         "opaque_pixels_in_background": int((rgba[..., 3][deep_clear] > 5).sum()),
         "transparent_pixels_in_artwork": int((rgba[..., 3][deep_solid] < 250).sum()),
+        "holes_in_artwork": int((rgba[..., 3][deep_solid] < 128).sum()),
         "edge_difference_percent": round(100.0 * float(wrong.sum()) / max(1, int((raw != -1).sum())), 2),
         "large_difference_pixels": int(thick.sum()),
         "flat_area_mismatch_percent": round(100.0 * float((wrong & flat).sum()) / max(1, int(flat.sum())), 3),

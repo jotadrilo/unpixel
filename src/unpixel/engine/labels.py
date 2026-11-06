@@ -148,6 +148,8 @@ STRIPE_PIXELS = 3_000_000  # assign in stripes above this, as the cost per color
 # fill has only the outline in reach and turns black. Chosen by eye on the battery: 6, 9 and 12 cost no time,
 # and the SVG keeps growing past 9.
 ASSIGN_WINDOW = 9
+# The background stays close: from farther, a pale highlight behind a thin outline would open a hole to it.
+BACKGROUND_WINDOW = 3
 STRIPE_MARGIN = ASSIGN_WINDOW + 5  # past the window and the three rounds of voting
 INTERIOR_DE = 5.0
 INTERIOR_SHARE = 0.0005
@@ -504,11 +506,11 @@ def assign(
     seed[t] = -1
     ys, xs = np.nonzero(t)
     limited = np.full((k + 1, ys.size), np.inf, dtype=np.float32)
-    size = 2 * window + 1
     for i in range(k + 1):
         m = seed == i
         if not m.any():
             continue
+        size = 2 * (min(window, BACKGROUND_WINDOW) if i == bg else window) + 1
         near = ni.uniform_filter(m.astype(np.float32), size=size, mode="constant") > 1e-4
         ok = near[ys, xs]
         limited[i, ok] = cost[i, ys[ok], xs[ok]]

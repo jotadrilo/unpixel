@@ -415,3 +415,20 @@ def test_a_single_color_image_keeps_its_color_at_any_size(tmp_path, size, capsys
     assert [layer["color"] for layer in report["layers"]] == ["#7828C8"]
     assert report["background_removed"] is None
     assert any("one color" in warning for warning in report["warnings"])
+
+
+def test_a_pale_highlight_behind_a_thin_outline_stays_opaque():
+    # Background, a 2-pixel outline, then a pale band all marked transition, then a fill.
+    outline, fill, pale, white = [10.0, 0.0, 0.0], [70.0, 50.0, 0.0], [97.0, 0.0, 0.0], [100.0, 0.0, 0.0]
+    lab = np.full((40, 60, 3), fill, dtype=np.float32)
+    lab[:, :10] = white
+    lab[:, 10:12] = outline
+    lab[:, 12:22] = pale
+    transition = np.zeros((40, 60), bool)
+    transition[:, 12:22] = True
+    flood = np.zeros((40, 60), bool)
+    flood[:, :10] = True
+    background = labels.Background(flood, np.array(white, dtype=np.float32))
+    palette = np.array([outline, fill], dtype=np.float32)
+    assigned = labels.assign(lab, transition, background, palette)
+    assert (assigned[20, 13:22] != len(palette)).all()
