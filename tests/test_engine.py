@@ -265,7 +265,7 @@ def test_crowded_faint_dots_dissolve_and_strong_or_lone_marks_stay():
     for x in range(20, 140, 20):
         label[150:154, x : x + 4] = 2  # a crowd of strong dots, as stitches
     label[100:104, 350:354] = 1  # a lone faint dot
-    out, count = labels.dissolve_speckle(label, pal, 40, 32.0, 40.0, 4)
+    out, count = labels.dissolve_speckle(label, pal, 40, 32.0, 120.0, 4)
     assert count == 6
     assert (out[50:54, 20:24] == 0).all()
     assert (out[150:154, 20:24] == 2).all()

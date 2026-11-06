@@ -137,6 +137,33 @@ def find_corners(
     return out
 
 
+def corner_span(chain: np.ndarray, at: int, closed: bool, step: float, reach: float = 7.0) -> tuple[float, float]:
+    """Over how many source pixels a corner does its turning, and by how many degrees in all.
+
+    A drawn cut does most of its turning within the blur of the source. A rounded shape spreads it out.
+    """
+    n = len(chain)
+    k = max(4, int(round(reach / step)))
+    if closed:
+        local = chain[(at + np.arange(-k, k + 1)) % n]
+    else:
+        local = chain[np.clip(at + np.arange(-k, k + 1), 0, n - 1)]
+    blur = ni.gaussian_filter1d(local.astype(np.float64), 0.5 / step, axis=0, mode="nearest")
+    lag = max(1, int(round(0.8 / step)))
+    v = blur[lag:] - blur[:-lag]
+    theta = np.unwrap(np.arctan2(v[:, 1], v[:, 0]))
+    turn = theta[1:] - theta[:-1]
+    # Only the turning in the corner's own direction: wiggles beside it are not part of the corner.
+    sign = 1.0 if turn.sum() >= 0 else -1.0
+    cum = np.cumsum(np.maximum(turn * sign, 0.0))
+    total = float(cum[-1])
+    if total <= 1e-6:
+        return 0.0, 0.0
+    a = int(np.searchsorted(cum, 0.1 * total))
+    b = int(np.searchsorted(cum, 0.9 * total))
+    return (b - a) * step, float(np.degrees(total))
+
+
 def sharpen_corners(chain: np.ndarray, corners: list[int], closed: bool, step: float) -> None:
     """Where both arms of a corner run straight, put the corner at their crossing, and the arm's points on the arms.
 

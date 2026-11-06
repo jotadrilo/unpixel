@@ -19,6 +19,11 @@ SOFT_SIGMA = 6.0  # source pixels, for walls across a soft gradient
 SOFT_WALL_DE = 2.5  # delta-E per source pixel: a wall with less contrast across it than this is soft
 FIT_TOLERANCE = 0.45  # source pixels
 UNDER = 1.0  # how far, in source pixels, the color below a wall reaches under the region above it
+CORNER_SPAN = 2.6  # source pixels: a real cut does its turning within this
+CORNER_TURN = 60.0  # degrees
+TIP_SPAN = 5.0  # source pixels
+TIP_MIN_TURN = 110.0
+TIP_MAX_TURN = 165.0
 SMALL_LOOP = 30.0  # source pixels of perimeter
 SPECK_AREA = 12  # source pixels: smaller pieces are absorbed
 SPECK_KEEP_AREA = 4  # ... unless they stand out by SPECK_KEEP_DE, as a dark stitch does
@@ -219,6 +224,23 @@ def _trace(
         corners = {k: v for k, v in corners.items() if not arc_soft[k]}
         # A dot or a stitch stays round: a small closed shape has no drawn corners to respect.
         corners = {k: v for k, v in corners.items() if not (closed[k] and len(soft_chains[k]) * step < SMALL_LOOP)}
+        # The owner's rule: smooth, unless the source has an abrupt cut. A turn spread out is a round shape.
+        found = sum(len(v) for v in corners.values())
+        kept: dict[int, list[int]] = {}
+        for k, cut in corners.items():
+            good = []
+            for c in cut:
+                span, total = curves.corner_span(soft_chains[k], c, bool(closed[k]), step)
+                blunt = span <= CORNER_SPAN and total >= CORNER_TURN
+                # A tip, as on a star: a wide turn, a little softened by the source, and not a stroke's round
+                # end, whose sides run parallel and so turn nearly all the way back.
+                tip = span <= TIP_SPAN and TIP_MIN_TURN <= total <= TIP_MAX_TURN
+                if blunt or tip:
+                    good.append(c)
+            if good:
+                kept[k] = good
+        corners = kept
+        info["corners_found"] = found
         info["corners"] = sum(len(v) for v in corners.values())
         for k, cut in corners.items():
             soft_chains[k] = soft_chains[k].copy()

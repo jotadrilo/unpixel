@@ -75,12 +75,6 @@ def write_svg(
     its own color: two sides of an antialiased wall cannot let anything through.
     """
     arcs = pmap.arcs
-    # A stroke along a wall that reaches the unpainted outside must stop short of it.
-    outer: set[int] = set()
-    for arc in arcs:
-        if arc.start >= 0 and (arc.left == 0 or arc.right == 0):
-            outer.add(arc.start)
-            outer.add(arc.end)
     thickness = 2.0 * region_stats[0] / np.maximum(region_stats[1], 1.0) if region_stats is not None else None
 
     forward: dict[int, str] = {}
@@ -123,10 +117,8 @@ def write_svg(
             pts, kinds = arc_points(i)
             if len(pts) == 0:
                 continue
-            cut_a = arc.start in outer
-            cut_b = arc.end in outer
-            if cut_a or cut_b:
-                pts = _trim(pts, kinds, cut_a, cut_b, width_key / 2)
+            # A stroke's square end must not poke past its wall, over the artwork's edge or a third color.
+            pts = _trim(pts, kinds, arc.start >= 0, arc.end >= 0, width_key / 2)
             d = f"M{_num(pts[0, 0, 0])} {_num(pts[0, 0, 1])}" + _segments_text(pts, kinds)
             traps.setdefault(int(region_class[low]), {}).setdefault(width_key, []).append(d)
 
