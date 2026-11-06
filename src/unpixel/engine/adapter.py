@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scipy import ndimage as ni
+
 from ..color import delta_e, srgb_to_lab, to_hex
 from ..segment import InvalidRequest, Segmentation
 from . import classify as classify_mod
@@ -16,6 +18,10 @@ DETAIL = {"low": 1.5, "medium": 1.0, "high": 0.6}
 TRANSPARENT_MATCH_DE = 8.0  # as today's engine
 LOOKS_LIKE_BACKGROUND_DE = 8.0
 FAR_FROM_PALETTE_DE = 25.0
+# More regions than this is noise or a photo's grain, not artwork: the battery's busiest image has about 1,300.
+# Tracing them takes tens of gigabytes and gives an SVG nothing can open, so the image is smoothed and tried again.
+BUSY_REGIONS = 8000
+BUSY_BLUR = (2.0, 4.0, 8.0)  # source pixels
 
 
 @dataclass
@@ -76,9 +82,17 @@ def segment_new(rgb: np.ndarray, options) -> tuple[Segmentation, Context]:
     else:
         work, scale = pipeline.working_image(rgb)
         output_scale = (width / work.shape[1], height / work.shape[0])
-        label, fine_lab, pal, background, palette_all, _bg, flat = pipeline.clean_labels(
-            work, clock, info, options.color_count, options.background, options.background_rgb, scale
-        )
+        for blur in (0.0, *BUSY_BLUR):
+            image = ni.gaussian_filter(work.astype(np.float32), (blur, blur, 0)) if blur else work
+            if blur:
+                info["kind"] = "soft"
+            label, fine_lab, pal, background, palette_all, _bg, flat = pipeline.clean_labels(
+                image, clock, info, options.color_count, options.background, options.background_rgb, scale
+            )
+            if lab_mod._regions(label, len(palette_all))[1] <= BUSY_REGIONS:
+                break
+        if blur:
+            warnings.append("This image is very busy, like a photo or noise, so it was smoothed first to keep the result usable.")
         palette, colors = pal.lab, pal.rgb
         grid_scale = float(scale)
         exact = False

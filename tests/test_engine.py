@@ -432,3 +432,33 @@ def test_a_pale_highlight_behind_a_thin_outline_stays_opaque():
     palette = np.array([outline, fill], dtype=np.float32)
     assigned = labels.assign(lab, transition, background, palette)
     assert (assigned[20, 13:22] != len(palette)).all()
+
+
+def test_noise_is_smoothed_until_it_can_be_traced(tmp_path, capsys):
+    from unpixel.cli import main
+    from unpixel.engine.adapter import BUSY_REGIONS
+
+    rng = np.random.default_rng(1)
+    source = tmp_path / "noise.png"
+    Image.fromarray(rng.uniform(0, 255, (500, 600, 3)).astype(np.uint8)).save(source)
+    assert main(["--engine", "new", "--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
+    report = __import__("json").loads(capsys.readouterr().out)
+    assert sum(layer["shapes"] for layer in report["layers"]) <= BUSY_REGIONS
+    assert any("very busy" in warning for warning in report["warnings"])
+
+
+def test_each_trap_wall_names_the_shape_it_belongs_to():
+    svg = pipeline.run(np.asarray(_two_touching_squares()), "stacked", "t").svg
+    traps = re.findall(r'class="trap"[^>]*data-shapes="([^"]*)"[^>]* d="([^"]*)"', svg)
+    assert traps
+    for owners, d in traps:
+        assert len(owners.split()) == d.count("M")
+
+
+def _two_touching_squares():
+    image = Image.new("RGB", (120, 120), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 20, 60, 60), fill=(200, 30, 60))
+    draw.rectangle((60, 20, 100, 60), fill=(30, 60, 200))
+    draw.rectangle((20, 60, 60, 100), fill=(30, 160, 80))
+    return image.filter(ImageFilter.GaussianBlur(0.8))

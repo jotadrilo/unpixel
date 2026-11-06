@@ -154,7 +154,7 @@ def write_svg(
             lowest[v] = min(lowest.get(v, 1 << 30), here)
 
     # Walls each lower color strokes, by stroke width.
-    traps: dict[int, dict[float, list[str]]] = {}
+    traps: dict[int, dict[float, list[tuple[str, int]]]] = {}
     if under > 0:
         for i, arc in enumerate(arcs):
             if arc.left == 0 or arc.right == 0:
@@ -173,7 +173,7 @@ def write_svg(
             cut_end = arc.end >= 0 and lowest[arc.end] < z_low
             pts = _trim(pts, kinds, cut_start, cut_end, width_key / 2)
             d = _polyline(pts, kinds, TRAP_TOLERANCE)
-            traps.setdefault(int(region_class[low]), {}).setdefault(width_key, []).append(d)
+            traps.setdefault(int(region_class[low]), {}).setdefault(width_key, []).append((d, low))
 
     by_class: dict[int, list[int]] = {}
     for region in pmap.loops:
@@ -182,7 +182,9 @@ def write_svg(
     groups, summary = [], []
     for position, cls in enumerate(order):
         body = []
-        for region in sorted(by_class[cls]):
+        regions = sorted(by_class[cls])
+        place = {region: at for at, region in enumerate(regions)}
+        for region in regions:
             d = []
             for loop in pmap.loops[region]:
                 first = True
@@ -194,10 +196,12 @@ def write_svg(
                     d.append(text(i, backward))
                 d.append("Z")
             body.append('<path d="' + "".join(d) + '"/>\n')
-        for width_key, ds in sorted(traps.get(cls, {}).items()):
+        for width_key, walls in sorted(traps.get(cls, {}).items()):
+            # Which shape of this group each wall of the stroke belongs to, for a tool that recolors one shape.
+            owners = " ".join(str(place[region]) for _, region in walls)
             body.append(
                 f'<path class="trap" fill="none" stroke="{to_hex(colors[cls])}" stroke-width="{_num(width_key)}" '
-                f'stroke-linejoin="round" d="{"".join(ds)}"/>\n'
+                f'stroke-linejoin="round" data-shapes="{owners}" d="{"".join(d for d, _ in walls)}"/>\n'
             )
         name = f"color-{position + 1}"
         color = to_hex(colors[cls])
