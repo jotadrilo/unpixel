@@ -368,3 +368,37 @@ def test_thin_pale_pieces_adrift_on_the_background_go_with_it():
     assert (out[50:53, 50:200] == 2).all()
     assert (out[100:103, 50:200] == 1).all()
     assert (out[160, 60] == 0)
+
+
+def _shadow_between_outline_and_fill():
+    """An outline, then a wide band of a shadow nearer the fill, then the fill. The band is all transition."""
+    outline, fill, shadow = [10.0, 0.0, 0.0], [70.0, 50.0, 0.0], [60.0, 40.0, 0.0]
+    lab = np.full((40, 60, 3), fill, dtype=np.float32)
+    lab[:, :20] = outline
+    lab[:, 20:28] = shadow
+    transition = np.zeros((40, 60), bool)
+    transition[:, 20:28] = True
+    palette = np.array([outline, fill], dtype=np.float32)
+    return lab, transition, labels.Background(np.zeros((40, 60), bool), None), palette
+
+
+def test_a_wide_shadow_beside_an_outline_keeps_to_the_fill():
+    lab, transition, background, palette = _shadow_between_outline_and_fill()
+    assert labels.assign(lab, transition, background, palette, window=3)[20, 21] == 0  # the defect this guards
+    assert labels.assign(lab, transition, background, palette)[20, 21] == 1
+
+
+def test_assigning_in_stripes_matches_assigning_whole(monkeypatch):
+    # Stripes are 64 rows here. Row 63 ends the first, and the fill it must reach starts 9 rows on, past that seam.
+    outline, fill, shadow = [10.0, 0.0, 0.0], [70.0, 50.0, 0.0], [60.0, 40.0, 0.0]
+    lab = np.full((200, 40, 3), fill, dtype=np.float32)
+    lab[:60] = outline
+    lab[60:72] = shadow
+    transition = np.zeros((200, 40), bool)
+    transition[60:72] = True
+    background = labels.Background(np.zeros((200, 40), bool), None)
+    palette = np.array([outline, fill], dtype=np.float32)
+    whole = labels.assign(lab, transition, background, palette)
+    assert whole[63, 20] == 1
+    monkeypatch.setattr(labels, "STRIPE_PIXELS", 64 * 40)
+    np.testing.assert_array_equal(labels.assign_large(lab, transition, background, palette), whole)

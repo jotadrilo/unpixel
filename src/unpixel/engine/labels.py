@@ -144,7 +144,11 @@ class Background:
 HALO_DE = 5.0
 ASKED_DE = 15.0  # how far from a color the user named the flood may go
 STRIPE_PIXELS = 3_000_000  # assign in stripes above this, as the cost per color is held in memory
-STRIPE_MARGIN = 8
+# How far a transition pixel looks for solid colors. Near 3, a shadow wider than that between an outline and a
+# fill has only the outline in reach and turns black. Chosen by eye on the battery: 6, 9 and 12 cost no time,
+# and the SVG keeps growing past 9.
+ASSIGN_WINDOW = 9
+STRIPE_MARGIN = ASSIGN_WINDOW + 5  # past the window and the three rounds of voting
 INTERIOR_DE = 5.0
 INTERIOR_SHARE = 0.0005
 LINE_REACH = 4
@@ -461,7 +465,7 @@ def assign(
     palette: np.ndarray,
     smoothness: float = 5.0,
     rounds: int = 3,
-    window: int = 3,
+    window: int = ASSIGN_WINDOW,
 ) -> np.ndarray:
     """Class per pixel: palette index, or len(palette) for the background.
 
