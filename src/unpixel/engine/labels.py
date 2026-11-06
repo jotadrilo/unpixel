@@ -186,6 +186,17 @@ MODE_RADIUS = 5.0
 FILL_MIN_DE = 9.0
 HIGHLIGHT_MIN_DE = 12.0
 STOP_DE = 9.0  # nothing above the floor is farther than this from the palette: enough colors
+PIN_RADIUS = 6.0
+PRUNE_DE = 11.5
+PRUNE_MAX_AREA = 0.01
+SAT_DARK_L = 38.0
+SAT_DARK_MIN_L = 15.0  # below this, chroma is a tint nobody can see, and any ratio is high
+SAT_DARK_CHROMA = 35.0
+SAT_DARK_RATIO = 1.6  # chroma over lightness: crimson is 2.2, navy 1.8, a dull brown about 1
+SAT_DARK_DE = 11.0  # plain Lab, from every color so far
+SAT_DARK_SHARE = 0.0003
+SAT_DARK_DEPTH = 2
+SAT_DARK_SLOTS = 3
 BEYOND_AREA_DE = 18.0
 BEYOND_AREA_SHARE = 0.002
 BEYOND_SOFT_DE = 26.0  # past the soft limit, a color must be this far from every other
@@ -249,6 +260,21 @@ def build_palette(
         hl_grid.ravel()[hl_bins] = hl_count
         hl_mass = ni.uniform_filter(hl_grid, size=3, mode="constant").ravel()[hl_bins] * 27.0
     slots = highlight_slots if count is None else 0
+    # Saturated darks: crimson shoes, a dark blue telescope. The compressed space sees them as near their dull
+    # neighbors, so they are judged here in plain Lab. They do not count toward the soft limit.
+    raw_means = from_perceptual(means.astype(np.float32)).astype(np.float64)
+    raw_chroma = np.hypot(raw_means[:, 1], raw_means[:, 2])
+    dark_saturated = alive & (raw_means[:, 0] >= SAT_DARK_MIN_L) & (raw_means[:, 0] < SAT_DARK_L) & (raw_chroma >= SAT_DARK_CHROMA) & (raw_chroma >= SAT_DARK_RATIO * raw_means[:, 0])
+    protected = 0
+    pinned: set[int] = set()  # highlights and saturated darks: Lloyd must not average them with what is near
+    protect_left = SAT_DARK_SLOTS if count is None else 0
+    # Only an area counts here. An outline's tinted edge has the same colors but no body.
+    deep = ni.binary_erosion(mask, iterations=SAT_DARK_DEPTH)
+    deep_idx = np.minimum(np.clip(((lab[deep] - _ORIGIN) / BIN).astype(np.int32), 0, None), np.array(shape) - 1)
+    deep_grid = np.zeros(shape, dtype=np.float32)
+    if deep_idx.shape[0]:
+        np.add.at(deep_grid.ravel(), np.ravel_multi_index(deep_idx.T, shape), 1.0)
+    deep_mass = ni.uniform_filter(deep_grid, size=3, mode="constant").ravel()[bins] * 27.0
     while len(centers) < limit:
         if hl_means is not None and slots > 0 and len(centers) >= highlight_at:
             slots -= 1
@@ -258,14 +284,34 @@ def build_palette(
                 s_h = dh * dh * hl_mass**area_power
                 s_h[~ok] = -1
                 pick_h = int(np.argmax(s_h))
+                pinned.add(len(centers))
                 centers.append(hl_means[pick_h])
                 log.append(f"+{len(centers)} highlight d={dh[pick_h]:.1f} mass={hl_mass[pick_h] / total * 100:.3f}%")
                 d = np.minimum(d, np.sqrt(((means - hl_means[pick_h]) ** 2).sum(-1)))
                 continue
             slots = 0
+        if protect_left > 0 and len(centers) >= highlight_at + highlight_slots - slots:
+            protect_left -= 1
+            raw_centers = from_perceptual(np.array(centers, dtype=np.float32)).astype(np.float64)
+            d_raw = np.sqrt(((raw_means[:, None] - raw_centers[None]) ** 2).sum(-1)).min(1)
+            ok = dark_saturated & (d_raw >= SAT_DARK_DE) & (deep_mass >= SAT_DARK_SHARE * total)
+            if ok.any():
+                # The more saturated for its lightness, the less the compressed space can see it.
+                s_d = d_raw * d_raw * mass**area_power * (raw_chroma / np.maximum(raw_means[:, 0], 1.0)) ** 2
+                s_d[~ok] = -1
+                pick_d = int(np.argmax(s_d))
+                pinned.add(len(centers))
+                centers.append(means[pick_d])
+                protected += 1
+                log.append(f"+{len(centers)} saturated dark d={d_raw[pick_d]:.1f} mass={mass[pick_d] / total * 100:.3f}%")
+                d = np.minimum(d, np.sqrt(((means - means[pick_d]) ** 2).sum(-1)))
+                limit = min(limit + 1, hard_max) if count is None else limit
+                continue
+            protect_left = 0
+        soft_now = soft_max + protected
         # The slots after the highlights go to what is left unexplained by area: a second band of sky, say.
         fill = hl_means is None or slots <= 0 or len(centers) >= highlight_at + highlight_slots
-        late = count is None and fill and len(centers) >= highlight_at and len(centers) < soft_max
+        late = count is None and fill and len(centers) >= highlight_at and len(centers) < soft_now
         score = d * d * mass ** (1.0 if late else area_power)
         score[~alive] = -1
         if late:
@@ -282,13 +328,14 @@ def build_palette(
                 break
             # Past the soft limit, only something truly far earns a color.
             # Or a real area that nothing represents, such as a pair of red shoes.
-            if len(centers) >= soft_max and far < BEYOND_SOFT_DE:
+            if len(centers) >= soft_now and far < BEYOND_SOFT_DE:
                 if not (alive & (d >= BEYOND_AREA_DE) & (mass >= BEYOND_AREA_SHARE * total)).any():
                     break
         centers.append(means[pick])
         log.append(f"+{len(centers)} d={d[pick]:.1f} mass={mass[pick] / total * 100:.3f}%")
         d = np.minimum(d, np.sqrt(((means - means[pick]) ** 2).sum(-1)))
-    centers = np.array(centers, dtype=np.float64)
+    seeds = np.array(centers, dtype=np.float64)
+    centers = seeds.copy()
 
     # A few rounds of Lloyd on the bins move each center to the middle of what it explains. A small color
     # owns only its own bins, so it stays where it is.
@@ -296,6 +343,8 @@ def build_palette(
         owner = ((means[:, None] - centers[None]) ** 2).sum(-1).argmin(1)
         for k in range(len(centers)):
             hit = owner == k
+            if k in pinned:
+                hit = hit & (((means - seeds[k]) ** 2).sum(-1) <= PIN_RADIUS**2)
             if hit.any():
                 centers[k] = np.average(means[hit], axis=0, weights=weights[hit])
     # A center between two distinct tones is a color the image does not have. Where the mean of a cell lies in
@@ -323,7 +372,28 @@ def build_palette(
             continue
         merged.append(centers[k])
     centers = np.array(merged, dtype=np.float32)
+    if count is None:
+        centers = _prune(centers, means, weights, soft_max + protected, log)
     return PaletteInfo(centers, lab_to_srgb(from_perceptual(centers)), stop, worst, log)
+
+
+def _prune(centers, means, weights, target, log) -> np.ndarray:
+    """Past the soft limit, drop the smaller of a pair of colors too close to be worth one more color."""
+    centers = centers.copy()
+    while len(centers) > target:
+        owner = ((means[:, None] - centers[None]) ** 2).sum(-1).argmin(1)
+        area = np.bincount(owner, weights, len(centers))
+        raw = from_perceptual(centers).astype(np.float64)
+        dist = np.sqrt(((raw[:, None] - raw[None]) ** 2).sum(-1))
+        np.fill_diagonal(dist, np.inf)
+        # A color that holds a real share of the image stays, however close: the ground's lit band, for one.
+        droppable = (dist.min(1) < PRUNE_DE) & (area < PRUNE_MAX_AREA * weights.sum())
+        if not droppable.any():
+            break
+        small = int(np.argmin(np.where(droppable, area, np.inf)))
+        log.append(f"-pruned {small} d={dist[small].min():.1f} area={area[small] / weights.sum() * 100:.3f}%")
+        centers = np.delete(centers, small, axis=0)
+    return centers
 
 
 def assign(
