@@ -141,6 +141,15 @@ class Background:
 
 
 HALO_DE = 5.0
+INTERIOR_DE = 5.0
+INTERIOR_SHARE = 0.0005
+LINE_REACH = 4
+LINE_MIN_DE = 6.0
+LINE_MAX_DE = 24.0
+LINE_MIN_L = 70.0
+LINE_MAX_CHROMA = 8.0
+LINE_SHARE = 0.001
+LINE_PIECE = 0.0005
 
 
 def find_background(lab: np.ndarray, border_share: float = 0.85, erode: bool = True) -> Background:
@@ -187,7 +196,10 @@ MODE_RADIUS = 5.0
 FILL_MIN_DE = 9.0
 HIGHLIGHT_MIN_DE = 12.0
 STOP_DE = 9.0  # nothing above the floor is farther than this from the palette: enough colors
+EXTRA_MIN_DE = 4.0
 PIN_RADIUS = 6.0
+PRUNE_DARK_L = 22.0
+PRUNE_DARK_DE = 22.0
 PRUNE_DE = 11.5
 PRUNE_MAX_AREA = 0.01
 SAT_DARK_L = 38.0
@@ -215,6 +227,7 @@ def build_palette(
     highlights: np.ndarray | None = None,
     highlight_slots: int = 3,
     highlight_at: int = 9,
+    extras: list | None = None,
 ) -> PaletteInfo:
     """Deterministic farthest-point palette over a histogram of the solid pixels.
 
@@ -375,6 +388,10 @@ def build_palette(
     centers = np.array(merged, dtype=np.float32)
     if count is None:
         centers = _prune(centers, means, weights, soft_max + protected, log)
+        for extra, why in extras or ():
+            if float(np.sqrt(((centers - extra) ** 2).sum(-1)).min()) >= EXTRA_MIN_DE:
+                centers = np.vstack([centers, extra.astype(np.float32)])
+                log.append(f"+{len(centers)} {why}")
     return PaletteInfo(centers, lab_to_srgb(from_perceptual(centers)), stop, worst, log)
 
 
@@ -389,6 +406,10 @@ def _prune(centers, means, weights, target, log) -> np.ndarray:
         np.fill_diagonal(dist, np.inf)
         # A color that holds a real share of the image stays, however close: the ground's lit band, for one.
         droppable = (dist.min(1) < PRUNE_DE) & (area < PRUNE_MAX_AREA * weights.sum())
+        # Two blacks are one black, however much of the image they hold.
+        darks = raw[:, 0] < PRUNE_DARK_L
+        close_dark = darks & ((dist[:, darks].min(1) < PRUNE_DARK_DE) if darks.any() else False)
+        droppable = droppable | close_dark
         if not droppable.any():
             break
         small = int(np.argmin(np.where(droppable, area, np.inf)))
@@ -609,6 +630,39 @@ def dissolve_speckle(label, palette_all, max_area: int, max_de: float, radius: f
     mapping = region_class.copy()
     mapping[crowded] = only[crowded]
     return mapping[regions].astype(label.dtype), int(crowded.size)
+
+
+def background_extras(lab: np.ndarray, solid: np.ndarray, background: Background) -> list:
+    """Two colors the background itself calls for, when the image has them.
+
+    Interior white: pixels like the background but enclosed, so not flooded. Sticker line: a pale line that
+    hugs the flood. Both are few pixels next to everything else, and both read at once when they are missing.
+    """
+    if background.lab is None:
+        return []
+    out = []
+    d = np.sqrt(((lab - background.lab) ** 2).sum(-1))
+    total = lab.shape[0] * lab.shape[1]
+    enclosed = solid & (d <= INTERIOR_DE) & ~background.mask
+    # A sticker's own fill is enclosed too; it needs a color all the more.
+    if enclosed.sum() >= INTERIOR_SHARE * total:
+        out.append((np.median(lab[enclosed], axis=0), "interior white"))
+    near_flood = ni.binary_dilation(background.mask, iterations=LINE_REACH)
+    line = near_flood & ~background.mask & (d >= LINE_MIN_DE) & (d <= LINE_MAX_DE) & (lab[..., 0] >= LINE_MIN_L)
+    line &= np.hypot(lab[..., 1], lab[..., 2]) <= LINE_MAX_CHROMA
+    line &= solid
+    # A sticker's line runs on and on. An edge's halo comes in short pieces.
+    if line.any():
+        parts, count = ni.label(line, structure=np.ones((3, 3), bool))
+        sizes = np.bincount(parts.ravel())
+        sizes[0] = 0
+        line = sizes[parts] >= LINE_PIECE * total
+    # The middle of the line, where it is darkest: its sides are a mix with the background.
+    if line.sum() >= LINE_SHARE * total:
+        pixels = lab[line]
+        cut = np.percentile(pixels[:, 0], 40)
+        out.append((np.median(pixels[pixels[:, 0] <= cut], axis=0), "sticker line"))
+    return out
 
 
 def settle_colors(palette: np.ndarray, label: np.ndarray, lab: np.ndarray, solid: np.ndarray) -> np.ndarray:

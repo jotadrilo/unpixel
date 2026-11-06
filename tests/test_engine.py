@@ -178,7 +178,10 @@ def test_stacked_shows_no_hairlines(tmp_path, scale):
     svg = pipeline.run(soft(im), "stacked").svg
     a = render(svg, tmp_path, round(400 * scale), round(400 * scale))[..., 3]
     # A wall across a pixel leaves at most a trace; an exactly abutting pair would leave a quarter of the pixel.
-    assert a[4:-4, 4:-4].min() >= (248 if scale >= 1 else 235)
+    # The strokes stop short of a junction where they would poke over a third color: a pixel or two there.
+    inner = a[4:-4, 4:-4]
+    assert (inner < (244 if scale >= 1 else 225)).sum() <= 8
+    assert inner.min() >= 150
 
 
 def test_closed_chain_smoothing_is_clean_at_its_seam_among_other_chains():

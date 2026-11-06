@@ -371,7 +371,8 @@ def clean_labels(rgb: np.ndarray, clock: _Clock, info: dict, colors_wanted: int 
     for attempt in range(2):
         with clock.stage("palette"):
             solid = ~transition & ~background.mask
-            pal = lab_mod.build_palette(lab, solid, count=colors_wanted, highlights=lab_mod.highlight_mask(lab, solid))
+            pal = lab_mod.build_palette(lab, solid, count=colors_wanted, highlights=lab_mod.highlight_mask(lab, solid),
+                                        extras=lab_mod.background_extras(lab, solid, background))
             info["palette_log"] = pal.log
         with clock.stage("assign"):
             label = lab_mod.assign(lab, transition, background, pal.lab, rounds=1 if attempt == 0 else 3)
