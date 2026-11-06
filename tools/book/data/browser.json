@@ -1,0 +1,838 @@
+{
+"browser": "Chromium 149.0.7827.55",
+"commit": "e2716c1",
+"pins": {
+"float": 255,
+"leaves": 255
+},
+"rows": [
+{
+"file": "axolotl-classic-cutout",
+"scales": {
+"1": {
+"pixels": 26924,
+"under_200": 9037,
+"min_alpha": 0,
+"inside": 195330
+},
+"3": {
+"pixels": 82679,
+"under_200": 28815,
+"min_alpha": 0,
+"inside": 1842747
+},
+"0.25": {
+"pixels": 4657,
+"under_200": 1896,
+"min_alpha": 0,
+"inside": 10567
+}
+}
+},
+{
+"file": "axolotl-classic-stacked",
+"scales": {
+"1": {
+"pixels": 85,
+"under_200": 69,
+"min_alpha": 0,
+"inside": 195331
+},
+"3": {
+"pixels": 1,
+"under_200": 0,
+"min_alpha": 247,
+"inside": 1842748
+},
+"0.25": {
+"pixels": 2051,
+"under_200": 57,
+"min_alpha": 0,
+"inside": 10567
+}
+}
+},
+{
+"file": "axolotl-new-cutout",
+"scales": {
+"1": {
+"pixels": 23461,
+"under_200": 7802,
+"min_alpha": 0,
+"inside": 195294
+},
+"3": {
+"pixels": 71271,
+"under_200": 23702,
+"min_alpha": 128,
+"inside": 1842060
+},
+"0.25": {
+"pixels": 4408,
+"under_200": 1654,
+"min_alpha": 0,
+"inside": 10552
+}
+}
+},
+{
+"file": "axolotl-new-stacked",
+"scales": {
+"1": {
+"pixels": 464,
+"under_200": 72,
+"min_alpha": 0,
+"inside": 195298
+},
+"3": {
+"pixels": 651,
+"under_200": 73,
+"min_alpha": 131,
+"inside": 1842097
+},
+"0.25": {
+"pixels": 4330,
+"under_200": 47,
+"min_alpha": 0,
+"inside": 10552
+}
+}
+},
+{
+"file": "chef-classic-cutout",
+"scales": {
+"1": {
+"pixels": 10218,
+"under_200": 3661,
+"min_alpha": 0,
+"inside": 176319
+},
+"3": {
+"pixels": 31750,
+"under_200": 11183,
+"min_alpha": 0,
+"inside": 1641153
+},
+"0.25": {
+"pixels": 2059,
+"under_200": 810,
+"min_alpha": 0,
+"inside": 9751
+}
+}
+},
+{
+"file": "chef-classic-stacked",
+"scales": {
+"1": {
+"pixels": 183,
+"under_200": 150,
+"min_alpha": 0,
+"inside": 176379
+},
+"3": {
+"pixels": 11,
+"under_200": 7,
+"min_alpha": 0,
+"inside": 1641182
+},
+"0.25": {
+"pixels": 893,
+"under_200": 93,
+"min_alpha": 0,
+"inside": 9777
+}
+}
+},
+{
+"file": "chef-new-cutout",
+"scales": {
+"1": {
+"pixels": 9428,
+"under_200": 3148,
+"min_alpha": 0,
+"inside": 178579
+},
+"3": {
+"pixels": 29990,
+"under_200": 10047,
+"min_alpha": 128,
+"inside": 1661894
+},
+"0.25": {
+"pixels": 1853,
+"under_200": 675,
+"min_alpha": 0,
+"inside": 9784
+}
+}
+},
+{
+"file": "chef-new-stacked",
+"scales": {
+"1": {
+"pixels": 108,
+"under_200": 13,
+"min_alpha": 0,
+"inside": 178601
+},
+"3": {
+"pixels": 255,
+"under_200": 34,
+"min_alpha": 191,
+"inside": 1661996
+},
+"0.25": {
+"pixels": 1845,
+"under_200": 32,
+"min_alpha": 0,
+"inside": 9820
+}
+}
+},
+{
+"file": "diver-classic-cutout",
+"scales": {
+"1": {
+"pixels": 30628,
+"under_200": 11495,
+"min_alpha": 0,
+"inside": 195304
+},
+"3": {
+"pixels": 93688,
+"under_200": 33787,
+"min_alpha": 0,
+"inside": 1803262
+},
+"0.25": {
+"pixels": 5452,
+"under_200": 2408,
+"min_alpha": 0,
+"inside": 11200
+}
+}
+},
+{
+"file": "diver-classic-stacked",
+"scales": {
+"1": {
+"pixels": 1267,
+"under_200": 1042,
+"min_alpha": 0,
+"inside": 195264
+},
+"3": {
+"pixels": 250,
+"under_200": 212,
+"min_alpha": 0,
+"inside": 1803262
+},
+"0.25": {
+"pixels": 2287,
+"under_200": 226,
+"min_alpha": 0,
+"inside": 11202
+}
+}
+},
+{
+"file": "diver-new-cutout",
+"scales": {
+"1": {
+"pixels": 28597,
+"under_200": 9963,
+"min_alpha": 0,
+"inside": 205699
+},
+"3": {
+"pixels": 90306,
+"under_200": 30550,
+"min_alpha": 12,
+"inside": 1900194
+},
+"0.25": {
+"pixels": 5603,
+"under_200": 2389,
+"min_alpha": 0,
+"inside": 11761
+}
+}
+},
+{
+"file": "diver-new-stacked",
+"scales": {
+"1": {
+"pixels": 1521,
+"under_200": 38,
+"min_alpha": 0,
+"inside": 205753
+},
+"3": {
+"pixels": 2801,
+"under_200": 394,
+"min_alpha": 12,
+"inside": 1900503
+},
+"0.25": {
+"pixels": 5509,
+"under_200": 30,
+"min_alpha": 0,
+"inside": 11771
+}
+}
+},
+{
+"file": "float-classic-cutout",
+"scales": {
+"1": {
+"pixels": 35651,
+"under_200": 12317,
+"min_alpha": 0,
+"inside": 261913
+},
+"3": {
+"pixels": 112364,
+"under_200": 38529,
+"min_alpha": 0,
+"inside": 2474419
+},
+"0.25": {
+"pixels": 5853,
+"under_200": 2512,
+"min_alpha": 0,
+"inside": 14701
+}
+}
+},
+{
+"file": "float-classic-stacked",
+"scales": {
+"1": {
+"pixels": 195,
+"under_200": 165,
+"min_alpha": 0,
+"inside": 261919
+},
+"3": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 2474424
+},
+"0.25": {
+"pixels": 2650,
+"under_200": 186,
+"min_alpha": 0,
+"inside": 14702
+}
+}
+},
+{
+"file": "float-new-cutout",
+"scales": {
+"1": {
+"pixels": 43362,
+"under_200": 13786,
+"min_alpha": 112,
+"inside": 375969
+},
+"3": {
+"pixels": 134885,
+"under_200": 42428,
+"min_alpha": 112,
+"inside": 3427058
+},
+"0.25": {
+"pixels": 9206,
+"under_200": 3677,
+"min_alpha": 14,
+"inside": 22236
+}
+}
+},
+{
+"file": "float-new-stacked",
+"scales": {
+"1": {
+"pixels": 566,
+"under_200": 12,
+"min_alpha": 190,
+"inside": 375969
+},
+"3": {
+"pixels": 956,
+"under_200": 139,
+"min_alpha": 164,
+"inside": 3427058
+},
+"0.25": {
+"pixels": 9074,
+"under_200": 2,
+"min_alpha": 14,
+"inside": 22266
+}
+}
+},
+{
+"file": "ghost-classic-cutout",
+"scales": {
+"1": {
+"pixels": 347,
+"under_200": 125,
+"min_alpha": 0,
+"inside": 209271
+},
+"3": {
+"pixels": 970,
+"under_200": 319,
+"min_alpha": 22,
+"inside": 1924506
+},
+"0.25": {
+"pixels": 107,
+"under_200": 43,
+"min_alpha": 0,
+"inside": 12035
+}
+}
+},
+{
+"file": "ghost-classic-stacked",
+"scales": {
+"1": {
+"pixels": 41,
+"under_200": 31,
+"min_alpha": 0,
+"inside": 209271
+},
+"3": {
+"pixels": 3,
+"under_200": 2,
+"min_alpha": 22,
+"inside": 1924506
+},
+"0.25": {
+"pixels": 63,
+"under_200": 21,
+"min_alpha": 0,
+"inside": 12035
+}
+}
+},
+{
+"file": "ghost-new-cutout",
+"scales": {
+"1": {
+"pixels": 14541,
+"under_200": 4891,
+"min_alpha": 0,
+"inside": 209357
+},
+"3": {
+"pixels": 45443,
+"under_200": 15119,
+"min_alpha": 136,
+"inside": 1925261
+},
+"0.25": {
+"pixels": 2187,
+"under_200": 1000,
+"min_alpha": 0,
+"inside": 12017
+}
+}
+},
+{
+"file": "ghost-new-stacked",
+"scales": {
+"1": {
+"pixels": 236,
+"under_200": 21,
+"min_alpha": 0,
+"inside": 209389
+},
+"3": {
+"pixels": 195,
+"under_200": 18,
+"min_alpha": 190,
+"inside": 1925381
+},
+"0.25": {
+"pixels": 2156,
+"under_200": 15,
+"min_alpha": 0,
+"inside": 12020
+}
+}
+},
+{
+"file": "leaves-classic-cutout",
+"scales": {
+"1": {
+"pixels": 42848,
+"under_200": 14919,
+"min_alpha": 0,
+"inside": 274161
+},
+"3": {
+"pixels": 134375,
+"under_200": 47667,
+"min_alpha": 0,
+"inside": 2511233
+},
+"0.25": {
+"pixels": 8210,
+"under_200": 3400,
+"min_alpha": 0,
+"inside": 16097
+}
+}
+},
+{
+"file": "leaves-classic-stacked",
+"scales": {
+"1": {
+"pixels": 38,
+"under_200": 29,
+"min_alpha": 0,
+"inside": 274159
+},
+"3": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 2511365
+},
+"0.25": {
+"pixels": 3333,
+"under_200": 17,
+"min_alpha": 0,
+"inside": 16097
+}
+}
+},
+{
+"file": "leaves-new-cutout",
+"scales": {
+"1": {
+"pixels": 36965,
+"under_200": 12353,
+"min_alpha": 0,
+"inside": 274043
+},
+"3": {
+"pixels": 113221,
+"under_200": 37368,
+"min_alpha": 0,
+"inside": 2510508
+},
+"0.25": {
+"pixels": 7761,
+"under_200": 3039,
+"min_alpha": 0,
+"inside": 16095
+}
+}
+},
+{
+"file": "leaves-new-stacked",
+"scales": {
+"1": {
+"pixels": 887,
+"under_200": 29,
+"min_alpha": 0,
+"inside": 274047
+},
+"3": {
+"pixels": 1197,
+"under_200": 145,
+"min_alpha": 0,
+"inside": 2510522
+},
+"0.25": {
+"pixels": 7601,
+"under_200": 18,
+"min_alpha": 0,
+"inside": 16096
+}
+}
+},
+{
+"file": "principito-classic-cutout",
+"scales": {
+"1": {
+"pixels": 39678,
+"under_200": 13844,
+"min_alpha": 34,
+"inside": 1547212
+},
+"3": {
+"pixels": 123456,
+"under_200": 42929,
+"min_alpha": 0,
+"inside": 14074588
+},
+"0.25": {
+"pixels": 8365,
+"under_200": 3221,
+"min_alpha": 149,
+"inside": 92092
+}
+}
+},
+{
+"file": "principito-classic-stacked",
+"scales": {
+"1": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 1547212
+},
+"3": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 14074588
+},
+"0.25": {
+"pixels": 3357,
+"under_200": 0,
+"min_alpha": 218,
+"inside": 92092
+}
+}
+},
+{
+"file": "principito-new-cutout",
+"scales": {
+"1": {
+"pixels": 33831,
+"under_200": 11100,
+"min_alpha": 118,
+"inside": 1547212
+},
+"3": {
+"pixels": 103814,
+"under_200": 34523,
+"min_alpha": 128,
+"inside": 14074588
+},
+"0.25": {
+"pixels": 7695,
+"under_200": 2852,
+"min_alpha": 123,
+"inside": 92092
+}
+}
+},
+{
+"file": "principito-new-stacked",
+"scales": {
+"1": {
+"pixels": 195,
+"under_200": 8,
+"min_alpha": 193,
+"inside": 1547212
+},
+"3": {
+"pixels": 257,
+"under_200": 31,
+"min_alpha": 190,
+"inside": 14074588
+},
+"0.25": {
+"pixels": 7573,
+"under_200": 2,
+"min_alpha": 169,
+"inside": 92092
+}
+}
+},
+{
+"file": "sunset-classic-cutout",
+"scales": {
+"1": {
+"pixels": 38186,
+"under_200": 13208,
+"min_alpha": 86,
+"inside": 1015798
+},
+"3": {
+"pixels": 121586,
+"under_200": 41970,
+"min_alpha": 0,
+"inside": 9269242
+},
+"0.25": {
+"pixels": 7659,
+"under_200": 3043,
+"min_alpha": 142,
+"inside": 59630
+}
+}
+},
+{
+"file": "sunset-classic-stacked",
+"scales": {
+"1": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 1015798
+},
+"3": {
+"pixels": 0,
+"under_200": 0,
+"min_alpha": 255,
+"inside": 9269242
+},
+"0.25": {
+"pixels": 2810,
+"under_200": 0,
+"min_alpha": 208,
+"inside": 59630
+}
+}
+},
+{
+"file": "sunset-new-cutout",
+"scales": {
+"1": {
+"pixels": 33810,
+"under_200": 11699,
+"min_alpha": 128,
+"inside": 1015798
+},
+"3": {
+"pixels": 102998,
+"under_200": 35201,
+"min_alpha": 132,
+"inside": 9269242
+},
+"0.25": {
+"pixels": 7754,
+"under_200": 2894,
+"min_alpha": 145,
+"inside": 59630
+}
+}
+},
+{
+"file": "sunset-new-stacked",
+"scales": {
+"1": {
+"pixels": 437,
+"under_200": 8,
+"min_alpha": 192,
+"inside": 1015798
+},
+"3": {
+"pixels": 762,
+"under_200": 104,
+"min_alpha": 184,
+"inside": 9269242
+},
+"0.25": {
+"pixels": 7658,
+"under_200": 1,
+"min_alpha": 199,
+"inside": 59630
+}
+}
+},
+{
+"file": "watchmaker-classic-cutout",
+"scales": {
+"1": {
+"pixels": 37208,
+"under_200": 13592,
+"min_alpha": 0,
+"inside": 239111
+},
+"3": {
+"pixels": 116195,
+"under_200": 42296,
+"min_alpha": 0,
+"inside": 2215134
+},
+"0.25": {
+"pixels": 6501,
+"under_200": 2981,
+"min_alpha": 0,
+"inside": 13224
+}
+}
+},
+{
+"file": "watchmaker-classic-stacked",
+"scales": {
+"1": {
+"pixels": 275,
+"under_200": 251,
+"min_alpha": 0,
+"inside": 239119
+},
+"3": {
+"pixels": 9,
+"under_200": 9,
+"min_alpha": 0,
+"inside": 2215220
+},
+"0.25": {
+"pixels": 2342,
+"under_200": 72,
+"min_alpha": 0,
+"inside": 13225
+}
+}
+},
+{
+"file": "watchmaker-new-cutout",
+"scales": {
+"1": {
+"pixels": 37200,
+"under_200": 12458,
+"min_alpha": 0,
+"inside": 239674
+},
+"3": {
+"pixels": 121177,
+"under_200": 40124,
+"min_alpha": 1,
+"inside": 2221697
+},
+"0.25": {
+"pixels": 6843,
+"under_200": 3170,
+"min_alpha": 0,
+"inside": 13396
+}
+}
+},
+{
+"file": "watchmaker-new-stacked",
+"scales": {
+"1": {
+"pixels": 2102,
+"under_200": 110,
+"min_alpha": 0,
+"inside": 239703
+},
+"3": {
+"pixels": 3003,
+"under_200": 302,
+"min_alpha": 1,
+"inside": 2221831
+},
+"0.25": {
+"pixels": 6777,
+"under_200": 57,
+"min_alpha": 0,
+"inside": 13406
+}
+}
+}
+]
+}
