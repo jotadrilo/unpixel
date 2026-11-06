@@ -203,7 +203,7 @@ This section is everything an AI agent needs. Follow it in order.
 
 ## Limits
 
-- **It is for flat color.** Photos and shaded paintings are refused with exit code 3. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
+- **It is for flat color.** An image with more than 16 colors is reduced to the 16 most relevant, with a warning, unless you pass `--colors`. Photos with almost no flat color are refused with exit code 3. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
 - **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard example. Windows of a few pixels come out as rounded dots. Use the largest source you have.
 - **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. A pale area that touches the outside with no outline disappears with the background, such as [the beard in this example](examples/README.md#1-remove-the-background-and-keep-everything-else). No option separates them. Use `--background keep` for an opaque copy.
 - **It does not judge contrast.** A dark logo stays dark, even if it is going on a dark surface. Check with `--preview-background`, and recolor with `--colors` if needed.

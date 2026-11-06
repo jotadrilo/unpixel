@@ -168,8 +168,7 @@ Cada color aparece solo donde es visible: en la plancha azul, todas las demás f
 
 ```sh
 unpixel airmail/input.jpg --background keep -o airmail/result.svg
-# unpixel: error: image not suitable for flat-color tracing: 17 colors found; ...
-# código de salida 3
+# warning: 17 colors found, so the 16 most relevant were kept. ...
 unpixel airmail/input.jpg --background keep --colors 6 -o airmail/six-colors.svg
 unpixel airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' -o airmail/four-colors.svg
 unpixel airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA,#D9562B' -o airmail/shaded-orange.svg
@@ -194,8 +193,7 @@ La sombra de la izquierda de este cartel oscurece el naranja hasta acercarlo al 
 
 ```sh
 unpixel axolotl/input.png -o axolotl/result.svg
-# unpixel: error: image not suitable for flat-color tracing: 20 colors found; ...
-# código de salida 3
+# warning: 20 colors found, so the 16 most relevant were kept. ...
 unpixel axolotl/input.png --colors 8 --preview-background '#C9D2FF' -o axolotl/result.svg
 ```
 
@@ -231,8 +229,7 @@ De izquierda a derecha: entrada, `low`, `medium` y `high`, ampliados ×3.
 
 ```sh
 unpixel shaded-painting/input.png -o shaded-painting/result.svg
-# unpixel: error: image not suitable for flat-color tracing: 20 colors found; ...
-# código de salida 3
+# warning: 20 colors found, so the 16 most relevant were kept. ...
 unpixel shaded-painting/input.png --colors 6 -o shaded-painting/forced.svg
 ```
 

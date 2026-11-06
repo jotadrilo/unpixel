@@ -545,25 +545,35 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
     if is_removed.all():
         raise InvalidRequest("--also-transparent would remove every color in the image")
 
+    # An image with more colors than the automatic limit is reduced to it, by the path a count takes.
+    color_count = options.color_count
+    if not options.palette and color_count is None and len(set(mapping[~is_removed].tolist())) > MAX_AUTO_COLORS:
+        found = len(set(mapping[~is_removed].tolist()))
+        color_count = MAX_AUTO_COLORS
+        warnings.append(
+            f"{found} colors found, so the {MAX_AUTO_COLORS} most relevant were kept. "
+            "Shading and gradients were flattened; pass --colors N to choose another count."
+        )
+
     # User palette and color-count requests only change which color each cluster becomes.
-    if options.color_count is not None:
+    if color_count is not None:
         labs = rgb_lab.astype(np.float64)
         alive = {c: 0.0 for c in set(mapping[~is_removed].tolist())}
         for c in range(k):
             if not is_removed[c]:
                 alive[int(mapping[c])] += float(max(areas[c], 1))
         # A speck-sized color must not take a slot from a real one, however different it looks.
-        if len(alive) > options.color_count:
+        if len(alive) > color_count:
             floor = MINOR_CLUSTER_SHARE * sum(alive.values())
             for tiny in sorted((c for c in alive if alive[c] < floor), key=lambda c: alive[c]):
                 others = [c for c in alive if c != tiny and alive[c] >= floor]
-                if others and len(alive) > options.color_count:
+                if others and len(alive) > color_count:
                     nearest = others[int(delta_e(labs[others], labs[tiny]).argmin())]
                     alive[nearest] += alive.pop(tiny)
                     mapping[mapping == tiny] = nearest
-        if len(alive) < options.color_count:
-            warnings.append(f"Asked for {options.color_count} colors but only {len(alive)} were found.")
-        while len(alive) > options.color_count:
+        if len(alive) < color_count:
+            warnings.append(f"Asked for {color_count} colors but only {len(alive)} were found.")
+        while len(alive) > color_count:
             keys = list(alive)
             pairs = [(float(delta_e(labs[p], labs[q])), p, q) for i, p in enumerate(keys) for q in keys[i + 1:]]
             _, p, q = min(pairs)
@@ -592,11 +602,6 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
     colors = [tuple(int(round(float(v))) for v in final_rgbs[old]) for old in used]
     lookup = np.array([-1 if is_removed[c] else remap[int(mapping[c])] for c in range(k)] + [-1], dtype=np.int16)
     raw = lookup[pixel_cluster]  # -1 indexes the trailing transparent entry
-    if not options.palette and options.color_count is None and len(colors) > MAX_AUTO_COLORS:
-        raise UnsuitableImage(
-            f"{len(colors)} colors found; this looks like a photo or a shaded painting. "
-            "Pass --colors N to force a reduced palette."
-        )
     if len(source_reps) > 1:
         # False edge colors are judged on what the image contains, so this happens before recoloring.
         position = {rep: i for i, rep in enumerate(source_reps)}

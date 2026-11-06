@@ -1,3 +1,4 @@
+import colorsys
 import io
 import json
 import shlex
@@ -141,6 +142,19 @@ def test_photo_is_rejected_with_exit_code_3(save, photo, capsys):
     code, result = run(capsys, save(photo))
     assert code == 3
     assert result["status"] == "error" and "suitable" in result["error"]
+
+
+def test_too_many_colors_are_reduced_with_a_warning(save, capsys):
+    image = Image.new("RGB", (640, 480), "white")
+    draw = ImageDraw.Draw(image)
+    for i in range(20):
+        hue = colorsys.hsv_to_rgb(i / 20, 0.5 + (i % 2) * 0.5, 0.55 + (i % 3) * 0.2)
+        x, y = 20 + (i % 5) * 120, 20 + (i // 5) * 110
+        draw.rectangle((x, y, x + 90, y + 80), fill=tuple(int(v * 255) for v in hue))
+    code, result = run(capsys, save(image))
+    assert code == 0
+    assert len(result["layers"]) == 16
+    assert any("most relevant" in warning for warning in result["warnings"])
 
 
 def test_unreadable_input_exits_2(tmp_path, capsys):
