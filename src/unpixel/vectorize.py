@@ -59,12 +59,23 @@ def build_svg(labels, colors, width, height, layers_mode, speck_area, title) -> 
     order = sorted(range(len(colors)), key=lambda i: -areas[i])  # largest color at the bottom
     groups = []
     summary = []
+    rank_of = np.full(len(colors) + 1, -1, dtype=np.int16)  # index -1, the transparent class, stays -1
     for position, cls in enumerate(order):
-        mask = labels == cls
+        rank_of[cls] = position
+    ranks = rank_of[labels]
+    for position, cls in enumerate(order):
+        mask = ranks == position
         if layers_mode == "stacked" and position + 1 < len(order):
-            above = np.isin(labels, order[position + 1 :])
-            core = ni.binary_erosion(above | mask, iterations=OVERLAP_MARGIN) & above
-            mask = mask | (ni.binary_dilation(mask, iterations=OVERLAP) & core)
+            ys = np.flatnonzero(mask.any(1))
+            xs = np.flatnonzero(mask.any(0))
+            if ys.size:
+                h, w = mask.shape
+                reach = OVERLAP + OVERLAP_MARGIN + 1
+                box = (slice(max(int(ys[0]) - reach, 0), min(int(ys[-1]) + 1 + reach, h)),
+                       slice(max(int(xs[0]) - reach, 0), min(int(xs[-1]) + 1 + reach, w)))
+                sub, m = ranks[box], mask[box]
+                core = ni.binary_erosion(sub >= position, iterations=OVERLAP_MARGIN) & (sub > position)
+                mask[box] = m | (ni.binary_dilation(m, iterations=OVERLAP) & core)
         paths = _trace_layer(mask, speck_area, scale, decimals)
         if not paths:
             continue

@@ -11,8 +11,29 @@ _M = np.array(
 _WHITE = np.array([0.95047, 1.0, 1.08883], dtype=np.float32)
 
 
+import os as _os
+_THREADS = int(_os.environ.get("UNPIXEL_THREADS", "1"))
+
+
+def _pmap(fn, jobs):
+    if _THREADS <= 1:
+        return [fn(j) for j in jobs]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(_THREADS) as ex:
+        return list(ex.map(fn, jobs))
+
+
 def srgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     """Convert sRGB values in 0..255, shape (..., 3), to float32 Lab."""
+    arr = np.asarray(rgb)
+    if arr.ndim == 3 and arr.shape[0] > 256:
+        out = np.empty(arr.shape, dtype=np.float32)
+
+        def work(y):
+            out[y:y + 256] = srgb_to_lab(arr[y:y + 256])
+
+        _pmap(work, range(0, arr.shape[0], 256))
+        return out
     c = np.asarray(rgb, dtype=np.float32) / 255.0
     c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
     t = (c @ _M.T) / _WHITE
@@ -24,7 +45,8 @@ def srgb_to_lab(rgb: np.ndarray) -> np.ndarray:
 
 
 def delta_e(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    return np.sqrt(((np.asarray(a) - np.asarray(b)) ** 2).sum(-1))
+    d = np.asarray(a) - np.asarray(b)
+    return np.sqrt(d[..., 0] * d[..., 0] + d[..., 1] * d[..., 1] + d[..., 2] * d[..., 2])
 
 
 def parse_hex(value: str) -> tuple[int, int, int]:

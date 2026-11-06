@@ -85,8 +85,25 @@ class Segmentation:
     warnings: list[str] = field(default_factory=list)
 
 
+_TILE = 256
+import os as _os
+_THREADS = int(_os.environ.get("UNPIXEL_THREADS", "1"))
+
+
+def _pmap(fn, jobs):
+    if _THREADS <= 1:
+        return [fn(j) for j in jobs]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(_THREADS) as ex:
+        return list(ex.map(fn, jobs))
+
+
 def _gauss_rgb(rgb: np.ndarray, sigma: float) -> np.ndarray:
     return np.stack([ni.gaussian_filter(rgb[..., i], sigma) for i in range(3)], axis=-1)
+
+
+def _sq3(d):
+    return d[..., 0] * d[..., 0] + d[..., 1] * d[..., 1] + d[..., 2] * d[..., 2]
 
 
 def _find_groups(flat_lab: np.ndarray) -> np.ndarray:
@@ -153,14 +170,14 @@ def _add_unexplained_colors(lab: np.ndarray, rgb: np.ndarray, grad: np.ndarray, 
         if centers.shape[0] >= MAX_EXPLAINED_CENTERS:
             break
         anchors = np.stack(
-            [sample_rgb[((sample_lab - c) ** 2).sum(-1) <= ((sample_lab - c) ** 2).sum(-1).min() + 9.0].mean(0)
-             for c in centers]
+            [sample_rgb[d <= d.min() + 9.0].mean(0)
+             for d in (_sq3(sample_lab - c) for c in centers)]
         ).astype(np.float32)
         left, right = np.triu_indices(centers.shape[0])
         mixes = srgb_to_lab((anchors[left][None] * (1 - steps) + anchors[right][None] * steps).reshape(-1, 3))
         worst = np.full(distinct.shape[0], np.inf, dtype=np.float32)
         for mix in mixes:
-            worst = np.minimum(worst, ((distinct - mix) ** 2).sum(-1))
+            worst = np.minimum(worst, _sq3(distinct - mix))
         far = np.sqrt(worst) > UNEXPLAINED_DE
         # A blend of three or more known colors, as in a thin line between two regions, stays inside
         # the range of those colors. A stroke in a genuinely new color falls outside it.
@@ -178,13 +195,19 @@ def _add_unexplained_colors(lab: np.ndarray, rgb: np.ndarray, grad: np.ndarray, 
 
 
 def _nearest(lab: np.ndarray, centers: np.ndarray) -> np.ndarray:
-    best = np.full(lab.shape[:2], np.inf, dtype=np.float32)
     out = np.zeros(lab.shape[:2], dtype=np.int16)
-    for i, center in enumerate(centers):
-        dist = ((lab - center) ** 2).sum(-1)
-        hit = dist < best
-        out[hit] = i
-        best[hit] = dist[hit]
+
+    def work(y):
+        sub = lab[y:y + 128]
+        o = out[y:y + 128]
+        best = np.full(sub.shape[:2], np.inf, dtype=np.float32)
+        for i, center in enumerate(centers):
+            dist = _sq3(sub - center)
+            hit = dist < best
+            o[hit] = i
+            best[hit] = dist[hit]
+
+    _pmap(work, range(0, lab.shape[0], 128))
     return out
 
 
@@ -208,7 +231,7 @@ def _try_split(lab_box: np.ndarray, flat_box: np.ndarray):
     proj = (samples - mean) @ vt[0]
     a, b = samples[proj.argmin()], samples[proj.argmax()]
     for _ in range(8):
-        side = ((samples - a) ** 2).sum(-1) > ((samples - b) ** 2).sum(-1)
+        side = _sq3(samples - a) > _sq3(samples - b)
         if side.all() or not side.any():
             return None
         a, b = samples[~side].mean(0), samples[side].mean(0)
@@ -219,7 +242,7 @@ def _try_split(lab_box: np.ndarray, flat_box: np.ndarray):
     position = (samples - a) @ axis / float(axis @ axis)
     if ((position > 1 / 3) & (position < 2 / 3)).mean() > SPLIT_MAX_MIDDLE:
         return None
-    full = ((lab_box - a) ** 2).sum(-1) > ((lab_box - b) ** 2).sum(-1)
+    full = _sq3(lab_box - a) > _sq3(lab_box - b)
     for piece in (flat_box & full, flat_box & ~full):
         parts, count = ni.label(piece)
         if count == 0:
@@ -274,6 +297,15 @@ def _cluster_regions(means, weights, solid):
     return assign, np.array(centers, dtype=np.float32).reshape(-1, 3)
 
 
+def _rim(mask: np.ndarray) -> np.ndarray:
+    d = mask.copy()
+    d[1:] |= mask[:-1]
+    d[:-1] |= mask[1:]
+    d[:, 1:] |= mask[:, :-1]
+    d[:, :-1] |= mask[:, 1:]
+    return d & ~mask
+
+
 def _remove_specks(labels: np.ndarray, min_area: int) -> np.ndarray:
     """Give regions smaller than min_area to their most common neighbor."""
     regions, count = _label_regions(labels)
@@ -288,7 +320,7 @@ def _remove_specks(labels: np.ndarray, min_area: int) -> np.ndarray:
         ys, xs = objects[rid - 1]
         box = (slice(max(ys.start - 1, 0), min(ys.stop + 1, h)), slice(max(xs.start - 1, 0), min(xs.stop + 1, w)))
         mask = regions[box] == rid
-        rim = ni.binary_dilation(mask) & ~mask
+        rim = _rim(mask)
         if not rim.any():
             continue
         values, counts = np.unique(labels[box][rim], return_counts=True)
@@ -312,13 +344,14 @@ def _dissolve_fringes(raw, base, flat, colors, background_rgb, min_flat) -> np.n
     objects = ni.find_objects(regions)
     h, w = raw.shape
     mix = np.linspace(0.0, 1.0, 21)[:, None]
+    path_cache, own_cache = {}, {}
     for rid in np.nonzero(flat_counts < min_flat)[0]:
         if rid == 0 or objects[rid - 1] is None:
             continue
         ys, xs = objects[rid - 1]
         box = (slice(max(ys.start - 1, 0), min(ys.stop + 1, h)), slice(max(xs.start - 1, 0), min(xs.stop + 1, w)))
         mask = regions[box] == rid
-        rim = ni.binary_dilation(mask) & ~mask
+        rim = _rim(mask)
         values, counts = np.unique(raw[box][rim], return_counts=True)
         values = values[np.argsort(-counts)][:2]
         own = int(raw[box][mask][0])
@@ -329,10 +362,15 @@ def _dissolve_fringes(raw, base, flat, colors, background_rgb, min_flat) -> np.n
         values = np.array([values[0], values[-1]])
         a, b = palette[int(values[0])], palette[int(values[1])]
         mean = srgb_to_lab(base[box][mask].mean(0))
-        path = srgb_to_lab(a * (1 - mix) + b * mix)
+        key = (int(values[0]), int(values[1]))
+        path = path_cache.get(key)
+        if path is None:
+            path = path_cache[key] = srgb_to_lab(a * (1 - mix) + b * mix)
         to_path = float(delta_e(path, mean).min())
         limit = ISLAND_DE if single else FRINGE_DE
-        if to_path <= limit and to_path < float(delta_e(srgb_to_lab(palette[own]), mean)):
+        if own not in own_cache:
+            own_cache[own] = srgb_to_lab(palette[own])
+        if to_path <= limit and to_path < float(delta_e(own_cache[own], mean)):
             closer_a = ((base[box][mask] - a) ** 2).sum(-1) <= ((base[box][mask] - b) ** 2).sum(-1)
             raw[box][mask] = np.where(closer_a, values[0], values[1])
     return raw
@@ -340,13 +378,33 @@ def _dissolve_fringes(raw, base, flat, colors, background_rgb, min_flat) -> np.n
 
 def _smooth_partition(labels: np.ndarray, classes: list[int], sigma: float) -> np.ndarray:
     """Smooth region outlines. Taking the strongest class per pixel leaves no gaps or overlaps."""
-    best = np.full(labels.shape, -1.0, dtype=np.float32)
+    radius = int(4.0 * sigma + 0.5)  # scipy's default truncate
+    tile = _TILE
+    h, w = labels.shape
     out = labels.copy()
-    for cls in classes:
-        soft = ni.gaussian_filter((labels == cls).astype(np.float32), sigma)
-        hit = soft > best
-        out[hit] = cls
-        best[hit] = soft[hit]
+    jobs = [(y, x) for y in range(0, h, tile) for x in range(0, w, tile)]
+    order = {c: i for i, c in enumerate(classes)}
+
+    def work(job):
+        y0, x0 = job
+        y1, x1 = min(y0 + tile, h), min(x0 + tile, w)
+        Y0, X0, Y1, X1 = max(y0 - radius, 0), max(x0 - radius, 0), min(y1 + radius, h), min(x1 + radius, w)
+        crop = labels[Y0:Y1, X0:X1]
+        lo, hi = int(crop.min()), int(crop.max())
+        if lo == hi:
+            out[y0:y1, x0:x1] = lo
+            return
+        here = sorted(np.unique(crop).tolist(), key=order.__getitem__)
+        cy, cx = slice(y0 - Y0, y1 - Y0), slice(x0 - X0, x1 - X0)
+        best = np.full((y1 - y0, x1 - x0), -1.0, dtype=np.float32)
+        res = out[y0:y1, x0:x1]
+        for cls in here:
+            soft = ni.gaussian_filter((crop == cls).astype(np.float32), sigma)[cy, cx]
+            hit = soft > best
+            res[hit] = cls
+            best[hit] = soft[hit]
+
+    _pmap(work, jobs)
     return out
 
 
@@ -399,7 +457,8 @@ def segment(rgb: np.ndarray, options) -> Segmentation:
         changed, centers = _split_mixed_regions(groups, regions, count, lab, flat, min_flat, centers)
         if not changed:
             break
-    regions, count = _label_regions(groups)
+    else:
+        regions, count = _label_regions(groups)
 
     # Per-region statistics over flat pixels. Index 0 of the bincounts is unused.
     flat_ids = regions[flat]
