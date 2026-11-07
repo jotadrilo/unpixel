@@ -3,7 +3,7 @@
 
 This pass is separate from make.py because it needs Playwright. Run it from a Python with Playwright, on the SVGs
 that make.py wrote to its work directory (set BOOK_CACHE to keep them), and commit its output, tools/book/data/browser.json.
-usage: browser_counts.py DIR_WITH_SVGS. The directory holds <image>-<new|classic>-<stacked|cutout>.svg. Set CHROMIUM to pick a binary.
+usage: browser_counts.py DIR_WITH_SVGS. The directory holds <image>-<stacked|cutout>.svg. Set CHROMIUM to pick a binary.
 """
 import io
 import json
@@ -29,8 +29,8 @@ def main():
     with sync_playwright() as pw:
         browser = pw.chromium.launch(executable_path=os.environ.get("CHROMIUM") or None)
         version = browser.version
-        for path in sorted(source.glob("*-*-*.svg")):
-            if path.stem.split("-")[1] not in ("new", "classic") or path.stem.startswith("leaves24"):
+        for path in sorted(source.glob("*.svg")):
+            if "reach" in path.stem or path.stem.startswith("leaves24"):
                 continue
             text = path.read_text(encoding="utf-8")
             w, h = (int(v) for v in re.search(r'width="(\d+)" height="(\d+)"', text).groups())

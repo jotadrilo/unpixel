@@ -1,0 +1,635 @@
+<h1>How to vectorize an image</h1>
+<p class="lead">A picture book on turning pixels into curves, taught through how unpixel does it. Every figure marked “Real run” comes from running this repository's code on the images in <code>battery/</code>.</p>
+<details class="toc-m"><summary>Chapters</summary><nav class="toc" aria-label="Chapters"><ol>{{toc}}</ol></nav></details>
+<p>Vectorizing comes down to two decisions: <b>which colors exist</b> and <b>where the borders between them run</b>. This book follows how unpixel makes each one, and shows what each step does to a real image.</p>
+<div class="note">{{usage_note}}</div>
+<div class="note"><b>How to read the figures.</b> Each one has a label. <span class="tag real">Real run</span> is output from code on an image. <span class="tag data">Real data</span> is measurements drawn as a table or chart. <span class="tag diagram">Diagram</span> is a drawing made by hand to explain an idea, and is not a result. Close-ups are magnified with no smoothing, so each square is one pixel.</div>
+
+<h2 id="c1">1. Raster and vector</h2>
+<p>A <b>raster</b> is a grid: a list of squares, each with its color. A <b>vector</b> is a description: “fill the area bounded by these curves with this color.”</p>
+<<< diagram 1
+{{d_raster}}
+===
+Drawn by hand. The white circles are <b>nodes</b>, which the curve passes through. The orange dots are <b>handles</b>, which pull on the curve without touching it.
+>>>
+<p>Magnify them and the difference shows. The raster reveals its squares. The vector is simply computed again at the new size.</p>
+<<< real 2 pix
+{{f1_raster}} | Source magnified ×8
+{{f1_vector}} | unpixel's SVG drawn ×8
+===
+A star from the axolotl. On the left, each square is a pixel: look at the grays along the edge, which are no color in the drawing. On the right there are no grays: the edge is a border between two colors.
+>>>
+<p>Those grays are <b>antialiasing</b>: an edge pixel blends its two neighboring colors. It is the first enemy in this trade, because it adds thousands of colors the artist never painted.</p>
+
+<h3>Why flat colors</h3>
+<p>This axolotl image has {{axolotl_source_colors}} distinct colors. unpixel's result has {{axolotl_colors}}. Each one is a <b>layer</b> you can edit, cut or print on its own.</p>
+<<< real
+<div class="tiles">{{f1_layers}}</div>
+===
+The {{axolotl_colors}} layers of the axolotl's real SVG, each drawn alone on white and named by its color. See how small some are: several are just a highlight or a few dots.
+>>>
+<h3>Why contours matter</h3>
+<p>On screen, a regular contour and a jittery one can look the same. To a plotter or a vinyl cutter they do not. The machine follows the line. Each extra node is a hesitation, and each overlap is a pass where it should not cut.</p>
+<<< real 2
+{{f1_filled}} | What you see
+{{f1_pen}} | What the blade follows
+===
+The same SVG (<code>--layers cutout</code>) with fills and with lines only. Notice that a wall looks like one line even though the file writes it twice, once for each region. Chapter 8 comes back to this.
+>>>
+
+<h2 id="c2">2. The whole path</h2>
+<p>First the map. The chapters that follow visit each stop.</p>
+<<< diagram
+{{d_pipeline}}
+===
+unpixel's pipeline, read from the code. It decides by <b>pixel</b> on the source image, and leaves geometry for last.
+>>>
+<p>Now the same journey in pictures. The area is always the same: the axolotl's head.</p>
+<<< real
+<div class="strip">{{f2_steps}}</div>
+===
+Stage by stage. The magenta pixels in the third image are the ones that get no say in the palette. The later images look blocky because the class map is made of pixels. The final SVG, last, is already curves.
+>>>
+
+<h2 id="c3">3. Telling kinds of image apart</h2>
+<p>Pixel art wants exact corners. A hand drawing wants smooth curves. Treating them alike ruins one of the two, so unpixel asks first, with <code>classify</code>.</p>
+<p>It asks on the untouched source: of the strong color jumps between neighbors (ΔE over 15), how many happen at once, with flat color on both sides (ΔE under 3)?</p>
+<<< data
+<p class="pal-label"><code>synth-pixel</code></p>{{c3_pix}}
+<p class="pal-label"><code>synth-hard</code>: edges with no antialiasing</p>{{c3_hard}}
+<p class="pal-label"><code>synth-aa</code>: same drawing with antialiasing</p>{{c3_aa}}
+<p class="pal-label"><code>axolotl</code>: a real drawing</p>{{c3_soft}}
+===
+The color step between each pixel and the next, along one row of each image. In the first two, lone bars among zeros: hard edges. In the last two, several bars in a row: the edge is spread across pixels.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th>Kind</th><th>Block</th><th><code>hard_share</code></th><th>Colors</th></tr></thead><tbody>{{t3_kinds}}</tbody></table></div>
+===
+Real output of <code>classify</code>. The first three are synthetic, from <code>tools/engine/synth.py</code>, because the battery has no pixel art or hard geometry: all nine real images are <code>soft</code>. <code>ghost</code> gets a <code>hard_share</code> of 1 because it has no strong jump at all, and stays <code>soft</code> because of its many colors.
+>>>
+<p>The rules: <code>pixel</code> if there is a grid (or the image is tiny with few colors); <code>hard</code> if jumps are clean and there are at most 4096 colors; <code>soft</code> otherwise.</p>
+<h3>What it changes in the output</h3>
+<<< real 2 pix
+{{f3_px_src}} | Source
+{{f3_px_out}} | unpixel
+===
+A corner of <code>synth-pixel</code>, block of {{px_block}} px. unpixel recognizes the grid, takes one pixel per block and writes only straight lines: it matches the source.
+>>>
+<<< real 2 pix
+{{f3_h_src}} | Source
+{{f3_h_out}} | unpixel
+===
+The tip of the triangle in <code>synth-hard</code>, a staircase because it has no antialiasing. The output is straightened into clean edges.
+>>>
+<h3>Simplifying what is not a drawing</h3>
+<p>What should happen to an image that is not a drawing, such as a photo or plain noise? Tracing every grain costs enormous time and memory, and produces a file nothing can open. So unpixel simplifies it.</p>
+<p>A result with more than {{busy_limit}} regions counts as too busy. <code>segment_new</code> blurs the image with a sigma of 2 px and starts again; if that is not enough, 4, then 8, and it stays with that. It warns that it did so.</p>
+<<< real 3 pix
+{{f3_noise_src}} | Noisy ramp (generated, fixed seed)
+{{f3_noise_before}} | No retry: {{noise_before_kb}} KB
+{{f3_noise_after}} | With retry: {{noise_after_kb}} KB
+===
+Left to right: the source; <code>pipeline.run</code>, which does not retry ({{noise_before_regions}} regions, {{noise_colors}} colors, {{noise_before_s}} s); and the command line ({{noise_after_s}} s, {{noise_after_mb}} MB). Regions per attempt: {{noise_attempts}}, stopping at sigma {{noise_blur}}. The warning: <i>“{{noise_warning}}”</i>
+>>>
+<p>With the retry the grain is gone and the ramp reads as bands: what you gain is a file you can open. On pure noise at 1.5 megapixels the command line here takes {{pure_s}} s, peaks at {{pure_mb}} MB and writes {{pure_kb}} KB. Development tests of this change, not repeated here, put the same case without the retry at 360 s, 25 GB and 294 MB.</p>
+<p>The retry lives only in the command-line path. The battery's images do not reach the limit: according to the code, the busiest has about 1300 regions.</p>
+
+<h2 id="c4">4. Color</h2>
+<h3>Lab, and why it needs warping</h3>
+<p>To decide whether two colors are “the same” you have to measure distance. In RGB that distance does not match what the eye sees. <b>Lab</b> tries to: L is lightness, a and b are the hue and how strong it is. Straight-line distance there is called <b>CIE76</b>, or ΔE.</p>
+<p>CIE76 has two known flaws. It overstates the difference between very saturated colors, and between darks whose tint nobody can see. Left alone, it splits a violet in two, and an outline may ask for several blacks.</p>
+<p>unpixel answers with <code>perceptual</code>: it compresses chroma (how strong a color is) where CIE76 overstates it. The map is exact and invertible.</p>
+<<< data
+{{c4_compress}}
+===
+What the real <code>perceptual</code> keeps, measured on a grid. Horizontal axis: a color's chroma. Vertical axis: the share that remains. The lines are three lightness levels: in the darks (L = 10) nearly all chroma goes.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Pair</th><th>ΔE in Lab</th><th>ΔE warped</th></tr></thead><tbody>{{t4_pairs}}</tbody></table></div>
+===
+The distance between four pairs of colors before and after <code>perceptual</code>. The saturated violets and the blacks drop by half. The pale and mid pairs change little.
+>>>
+<p>What if it is turned off? That is easy to try: replace both functions with the identity and run unpixel again.</p>
+<<< real 2
+{{f4_warp}} | With <code>perceptual</code>
+{{f4_nowarp}} | Without <code>perceptual</code>
+{{s4_warp}}
+{{s4_nowarp}}
+<p class="pal-label">Without <code>perceptual</code> the axolotl's violets are {{nowarp_violets}} ({{nowarp_n}} colors in all). With it, {{warp_violets}} ({{warp_n}} colors).</p>
+<div class="tw"><table><thead><tr><th>Image</th><th>With: colors (darks L &lt; 25)</th><th>Without: colors (darks)</th></tr></thead><tbody>{{t4_nowarp}}</tbody></table></div>
+===
+unpixel with the warp turned off. Palettes run from dark to light: above, with <code>perceptual</code>; below, without. The split violet is confirmed. The “three blacks” the code's docstring mentions <b>do not reproduce</b> on this battery: unwarped, there are never more than {{nowarp_darks_max}} darks. And on some images turning it off reduces colors, so the effect does not always go the same way.
+>>>
+
+<h3>Why small colors get lost</h3>
+<p>Take the Little Prince: his skin, the highlight on the glass and the shine on the ground. They cover little area and mean a lot.</p>
+<p>A well-known general way to pick colors is <b>k-means</b>. It places K centers to minimize the sum of distances from all pixels. Each pixel counts once, so a large area counts a lot. Giving the sky two centers can pay off better than giving one to the skin. Small colors lose even when they are very different.</p>
+<<< real 3 pix
+{{f4_hand_src}} | Source
+{{f4_hand_km}} | K-means, 16 colors
+{{f4_hand_out}} | unpixel
+{{f4_glass_src}} | Source
+{{f4_glass_km}} | K-means
+{{f4_glass_out}} | unpixel
+{{f4_shine_src}} | Source
+{{f4_shine_km}} | K-means
+{{f4_shine_out}} | unpixel
+===
+Three areas of the Little Prince. K-means here is a generic method, not part of unpixel: <code>scipy</code>'s, on the image in Lab after a 3×3 median. It turns the hand brown, merges the glass with the sky and loses the shine on the ground. unpixel keeps all three.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Color in the source</th><th>K-means</th><th>unpixel</th></tr></thead><tbody>{{t4_probes}}</tbody></table></div>
+===
+What each method painted at the innermost point of each color. The square is the color painted; the number, its ΔE from the source at that point. Higher is worse. The points were found by searching the image itself.
+>>>
+
+<h3>How unpixel's palette protects them</h3>
+<p>The idea is <b>farthest point</b>. Take the most abundant color. Then the one farthest from what you have. And so on until nothing is left far away. The score is <code>distance² × mass^0.3</code>: so low an exponent means area only breaks ties.</p>
+<<< diagram
+{{d_farthest}}
+===
+Drawn by hand on made-up data, in two dimensions. Each point is a color. A big cloud attracts k-means' centers. Farthest point looks first at what is not yet represented.
+>>>
+<<< real
+<div class="strip">{{f4_seeds}}</div>
+===
+The Little Prince's real seeds, added one at a time. Each image assigns every pixel to its nearest seed with <code>assign</code> itself. Look at the jump from 1 to 2 (the sky), and how yellow and green appear with very few seeds.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Order</th><th>Seed</th><th>Why</th><th>Distance</th><th>Mass</th></tr></thead><tbody>{{t4_seeds}}</tbody></table></div>
+===
+The real log of <code>build_palette</code>, in its second pass. Mass is the share of pixels around that histogram bin. See how many picks have a mass under 1%, and one surprise: the glass comes in seventh, on distance alone. The three “highlight” slots go to other tones here.
+>>>
+<p>After picking, a few rounds of Lloyd (the k-means step) center each color on what it explains. That step was never k-means' problem; the problem is letting area decide where it starts. Protected colors stay <b>pinned</b>: they average only with what lies within 6 of them. At the end, <code>settle_colors</code> replaces each color with the median of its solid pixels.</p>
+<p>On top of that there are two reserves: highlights and saturated darks.</p>
+<h4>Highlights</h4>
+<p>From the ninth color on, up to three slots go to tones from <code>highlight_mask</code> (chapter 5). The rule can be switched off to see what is lost.</p>
+<<< real 3 pix
+{{f4_hl_src}} | Source
+{{f4_hl_on}} | Highlights on: {{dv_on_n}} colors
+{{f4_hl_off}} | Highlights off: {{dv_off_n}} colors
+{{s4_dv_on}}
+{{s4_dv_off}}
+===
+<code>diver</code> with the rule on and off. Without it the palette no longer has {{nohl_lost_d}}: the lantern loses its liveliest cyan. The surprise is the Little Prince: there, switching the rule off only removes {{nohl_lost_p}}, a dark green. <b>The glass survives anyway</b>, because it is already far from everything else.
+>>>
+<h4>Saturated darks</h4>
+<p>Compressing chroma has a cost. A shoe's dark red looks, in the warped space, like any brown. So these colors are judged in plain Lab: L between 15 and 38, chroma of at least 35 and 1.6 times L, and an area with some body.</p>
+<<< real 3 pix
+{{f4_sat_shoe_src}} | Source
+{{f4_sat_shoe_on}} | With the rule
+{{f4_sat_shoe_off}} | Without it
+{{f4_sat_scope_src}} | Source
+{{f4_sat_scope_on}} | With the rule
+{{f4_sat_scope_off}} | Without it
+===
+Without this reserve (<code>SAT_DARK_SLOTS = 0</code>) the palette loses {{nosat_lost_p}}. The shoe turns brown with red specks and the telescope loses its blue. The price is more colors: {{full_n}} instead of {{nosat_n}}.
+>>>
+
+<h2 id="c5">5. Masks</h2>
+<p>A <b>mask</b> is a yes-or-no image: each pixel meets a condition or does not. Masks are unpixel's central tool. Each one answers a question and decides who may do what.</p>
+<figure class="fig"><div class="tw"><table><thead><tr><th>Mask</th><th class="w">Question</th><th class="w">What it decides</th></tr></thead><tbody>
+<tr><td>Background</td><td class="w">Can a flood from the border reach it?</td><td class="w">It becomes transparent. Nothing else can.</td></tr>
+<tr><td>Transition</td><td class="w">Is it a mix of its two sides?</td><td class="w">It gets no vote on the palette, and picks its color only among neighbors.</td></tr>
+<tr><td>Solid</td><td class="w">Is it neither of the above?</td><td class="w">It votes on the palette and picks its color freely.</td></tr>
+<tr><td>Highlight</td><td class="w">Is it solid and clearly lighter than its surroundings?</td><td class="w">It competes for the palette's reserved slots.</td></tr>
+</tbody></table></div><figcaption class="cap"><span class="tag diagram">Summary</span> The four real masks and their roles.</figcaption></figure>
+<h3>Background: the flood</h3>
+<p>Is this pixel white? That is not enough. The white inside an eye is not background. The background is what you can reach from the border without crossing anything.</p>
+<p>The image's border sets the color (here {{bg_hex}}). Then: pixels alike to that color (within {{bg_tau}}); an erosion of 1 px, so a slit cannot let the flood through; keep the pieces touching the border; and a dilation to recover what erosion took.</p>
+<<< real 2
+{{f5_src}} | Source
+{{f5_near}} | <code>near</code>: alike to the background
+{{f5_flood}} | <code>flood</code>: those touching the border
+{{f5_final}} | Final. Blue: background. Green: alike but enclosed
+===
+The steps of <code>find_background</code> on <code>float</code>, read from the function itself. The background is {{bg_share}} of the image. Another {{bg_enclosed}} looks like background but lies inside, in green: the fence's holes and the sticker's interior are left alone.
+>>>
+<<< real 3 pix
+{{f5_src_z}} | Source
+{{f5_near_z}} | Alike
+{{f5_final_z}} | Final
+===
+A piece of the fence. These whites equal the background, but the gray wires enclose them, so they do not become transparent. If you want them to, use <code>--also-transparent</code>; the command line warns about it.
+>>>
+<p>The flood is only tried if the border is uniform: 85% of it must lie within 6 of its median. In <code>sunset</code> and <code>principito</code> it is not, so nothing is removed. unpixel says so: <i>“{{note_principito}}”</i></p>
+
+<h3>Transition: who is a mix</h3>
+<p>An edge pixel is, almost literally, a mix of the pixels on its two sides. <code>transition_mask</code> checks just that.</p>
+<<< diagram
+{{d_mix}}
+===
+Drawn by hand. Colors are points in Lab space. The code tries four directions and takes the one with most contrast between opposite pixels, at 1, 2 and 3 px away. It requires a contrast of at least 12 (30 at 3 px), and a residual under 22% of the contrast (at least 2.5).
+>>>
+<p>What it leaves unmarked matters most. The center of a thin line is not a mix: its two sides are alike, so there is no contrast and the test fails. A line survives because its center stays solid.</p>
+<<< real 2 pix
+{{f5_wh_src}} | Source: the axolotl's whiskers
+{{f5_wh_tr}} | Magenta: transition
+===
+The whiskers are magenta along their sides and gray down the center. That gray center is <b>solid</b>, which is why a whisker keeps its dark color.
+>>>
+<<< data
+{{f5_row}} | Column
+{{c5_row}}
+===
+Lightness along a vertical column of the axolotl (x = {{row_x}}, y from {{row_y0}} to {{row_y1}}; the strip above is that area, turned on its side). Pink dots are marked as transition; blue, as solid. Look at the bottom of each valley: it is a whisker's center, and it is solid.
+>>>
+<<< real 3 pix
+{{f5_gill_src}} | Source
+{{f5_gill_tr}} | Transition: {{tr_share}} of the image
+{{f5_gill_solid}} | Solid: {{solid_share}} of the image
+===
+The gills in <code>float</code>. The pink shadow between the dark outline and the vivid pink is nearly all magenta, because it is a gradient. Keep this in mind for chapter 6.
+>>>
+<<< real 2
+{{f5_all_tr}} | Transition
+{{f5_all_solid}} | Solid
+===
+The same masks over the whole of <code>float</code>. The rest, in white, is background.
+>>>
+<h3>Highlights</h3>
+<p>A highlight is a solid pixel whose lightness beats the average of the 21 × 21 pixels around it by at least 10.</p>
+<<< real 2 pix
+{{f5_hl_z_src}} | Source
+{{f5_hl_z}} | <code>highlight_mask</code>
+===
+The area of <code>diver</code> with the most highlights (in all, {{hl_share}} of the image). It marks true highlights, and also the light side of every dark outline, since the average drops there: the mask is generous. A reserved slot also requires being far from the palette.
+>>>
+
+<h2 id="c6">6. Assignment: how far a pixel may look</h2>
+<p>With a palette and masks, each pixel needs a color. A solid pixel takes the closest one. A transition pixel may not: it chooses only among colors that exist in solid form within a window. How large should that window be? The constant is <code>ASSIGN_WINDOW</code>, and the answer is a tradeoff worth seeing.</p>
+<h3>With no limit: the halo</h3>
+<p>Between a dark outline and a blue-green fill, the mix passes through a dark green. If the palette has a dark green somewhere else, the edge pixel takes it. The result: every outline gets a ring of a third color. That is a <b>halo</b>, and it is why a limit exists.</p>
+<<< real 4 pix
+{{f6_h_src}} | Source
+{{f6_h_lim}} | Reach {{assign_window}}
+{{f6_h_free}} | No limit
+{{f6_h_diff}} | Pixels that change
+===
+The axolotl's suit panel, before any cleaning. With no limit on colors (an enormous window; the background alone stays limited), the edges of buttons and boxes fill with blotches of a darker green from elsewhere in the image. With a limit they do not appear. Over the whole image, {{halo_changed}} pixels change.
+>>>
+<h3>Too little reach: the shadow that turns black</h3>
+<p>So a small window seems best. A reach of 3, a window of 7 × 7, stops the halo. But look at the gills in <code>float</code>: parts of the shadow turn black.</p>
+<<< real 3 pix
+{{f6_src}} | Source
+{{f6_r3}} | Reach 3
+{{f6_r6}} | Reach 6
+{{f6_r9}} | Reach 9
+{{f6_r12}} | Reach 12
+===
+The same gills in the final SVG at each reach. At 3, large parts of the pink shadow take the outline's color. At 6 they nearly vanish. At 9 a small remnant stays. At 12 there is no obvious gain.
+>>>
+<p>One pixel shows why. The shadow is a gradient, so its pixels are transitions. If the gradient is wider than the window, no solid pink is in sight. Only the outline is left.</p>
+<<< real 2 pix
+{{f6_window}} | Source
+{{f6_window_out}} | Assignment at reach 3
+===
+The pixel marked in pink is at ({{pick_x}}, {{pick_y}}). In the source it is {{pick_src}}. At reach 3 it gets {{pick_got3}}. The small square is the 7 × 7 window; the large one, 19 × 19.
+>>>
+<div class="note"><p class="pal-label">Solid colors within that pixel's reach:</p>
+<p class="pal-label">At reach 3</p>{{s6_near3}}
+<p class="pal-label">At reach 9</p>{{s6_near9}}</div>
+<<< real 2 pix
+{{f6_wrong3}} | Reach 3
+{{f6_wrong9}} | Reach 9
+===
+In black, the pixels in this area that the output paints dark (L &lt; 25) where the source is over 18 points lighter and has color (chroma &gt; 25). This measure was made for this book and is not part of unpixel.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th>3</th><th>6</th><th>9</th><th>12</th></tr></thead><tbody>{{t6_wrong}}</tbody></table></div>
+===
+Those wrongly dark pixels across the whole SVG, by image and reach. The count falls sharply from 3 to 6, somewhat from 6 to 9, and little from 9 to 12.
+>>>
+<h3>What reach costs</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Reach</th><th>Total KB</th><th>Paths</th><th>Nodes</th><th>Total seconds</th><th>Peak MB</th></tr></thead><tbody>{{t6_cost}}</tbody></table></div>
+<div class="tw"><table><thead><tr><th>KB per image</th><th>3</th><th>6</th><th>9</th><th>12</th></tr></thead><tbody>{{t6_kb}}</tbody></table></div>
+===
+All nine images at each reach, one run each. Time barely changes. More reach means more paths and more KB: from 3 to 9, {{kb_3_to_9}} in total; from 9 to 12, {{kb_9_to_12}}. Not all grow: from 3 to 9, {{grow_names_shrink}} shrink. From 9 to 12, {{grow_9_12}} of 9 grow.
+>>>
+<p><b>The value {{assign_window}} was chosen by eye</b> by the project's owner, looking at the battery. There is no computed optimum. What the numbers say: 6, 9 and 12 cost no time; nearly all the gain arrives by 9, and the SVG keeps growing after it. 6 would also have been defensible.</p>
+<h3>Why the background has a shorter reach</h3>
+<p>The background is also a “color” a pixel can reach. A very pale highlight behind a thin outline can see the background across the line, 9 px away, and resembles it more than anything else. The highlight becomes a hole.</p>
+<<< real 3 pix
+{{f6_hole_src}} | Source
+{{f6_hole_9}} | Background at reach {{assign_window}}
+{{f6_hole_3}} | Background at reach {{background_window}}
+===
+The axolotl's UFO at <code>--colors {{hole_colors}}</code>, on magenta so transparency shows. If the background had the same reach as colors, the dome's highlight would be a hole of {{hole_px}} px. Hence <code>BACKGROUND_WINDOW = {{background_window}}</code>: colors are seen from {{assign_window}}, the background only from {{background_window}}. Reproduced by changing that constant.
+>>>
+<p>The lesson: one window was never one decision. There are two different questions, and each needs its own distance.</p>
+
+<h2 id="c7">7. Cleaning</h2>
+<p>Assignment leaves debris. Each cleaning rule answers one kind of debris, and each can be wrong. Here they are with their successes and, when there are any, their mistakes.</p>
+<h3>The neighbors' vote</h3>
+<p>Inside <code>assign</code>, each pixel pays up to 5 ΔE for disagreeing with its 3 × 3 neighbors. Specks between close tones fall. A lone dark dot, far from everything, stays.</p>
+<<< real 2 pix
+{{v_a}} | No voting rounds
+{{v_b}} | Three rounds
+===
+The same call to <code>assign</code> with <code>rounds=0</code> and <code>rounds=3</code>, on the axolotl. Look at the edges: the stepping of close tones clears up, and the dark dot stays. {{v_changed}} pixels change.
+>>>
+<h3>Fringes: <code>dissolve_fringes</code></h3>
+<p>A thin band whose color lies between those of its two sides is not a color: it is an edge. Each of its pixels goes to the closer side. A true thin line is safe: its color does not lie between its neighbors, or it has the same one on both sides.</p>
+<<< real 2 pix
+{{fr_src}} | Source
+{{fr_before}} | Before
+{{fr_diff}} | Magenta: dissolved
+{{fr_after}} | After
+===
+The chest in <code>float</code>. Before, a dark green ring surrounds each outline of the box. It dissolves. Across the image, {{fr_count}} pixels.
+>>>
+<p>There is a trick here: unpixel runs <b>twice</b>. Bands found in the first pass join the transition mask, and stop voting on the second pass's palette.</p>
+<<< real
+<p class="pal-label">First pass, {{pass1_n}} colors</p>{{s7_pass1}}
+<p class="pal-label">Second pass, {{pass2_n}} colors</p>{{s7_pass2}}
+===
+The real palettes of <code>float</code> in each pass.
+>>>
+<h3>Doubling the map: <code>refine_double</code></h3>
+<<< real 2 pix
+{{re_a}} | Each pixel, four alike
+{{re_b}} | After <code>refine_double</code>
+===
+A flower in the Little Prince. The map doubles and, along walls, each new pixel takes the closest color among its neighbors, compared with the interpolated image. The staircase softens before any curve is measured.
+>>>
+<h3>Specks: <code>absorb_specks</code></h3>
+<p>A piece under 12 source pixels goes to the neighbor closest in color. If it stands out (ΔE ≥ 25), it is absorbed only below 4 px. A piece under 60 px that barely differs (ΔE &lt; 16) also goes, as texture.</p>
+<<< real 2 pix
+{{sq_src}} | Source
+{{sq_before}} | Before
+{{sq_diff}} | Magenta: absorbed
+{{sq_after}} | After
+===
+A leaf in the Little Prince. Loose pieces beside the glass and the outline go, and a patch in the green band below changes.
+>>>
+<<< real 2 pix
+{{sp_src}} | Source
+{{sp_before}} | Before
+{{sp_diff}} | Magenta: absorbed
+{{sp_after}} | After
+===
+The lantern in <code>diver</code>, where it changes most. Here the rule does harm: each stretch of the wire cross is a small, low-contrast piece, so the stretches get absorbed. The cross ends up cut.
+>>>
+<h3>Crowds: <code>dissolve_speckle</code></h3>
+<p>The idea: a speck is texture if it has low contrast (ΔE &lt; 32), is small (≤ 40 px), has a single neighbor and is surrounded by others like it (more than 4 within 30 px). The aim is speckled rock and dots inside a shadow.</p>
+<<< real 2 pix
+{{cr_src}} | Source
+{{cr_before}} | Before
+{{cr_diff}} | Magenta: dissolved
+{{cr_after}} | After
+===
+The overall pocket in <code>watchmaker</code>, {{cr_islands}} islands. <b>This is a failure.</b> Those “islands” are the pocket's stitches, which the source has. A seam is exactly a crowd of small, low-contrast marks.
+>>>
+<<< real 2 pix
+{{cf_src}} | Source
+{{cf_before}} | Before
+{{cf_diff}} | Magenta: dissolved
+{{cf_after}} | After
+===
+The salted pretzel in <code>float</code>, {{cf_islands}} islands: unpixel erases several salt grains the source has. Islands dissolved here: {{cr_per}}. In both cases looked at closely, what goes is real detail. This rule deserves a second look.
+>>>
+<h3>Pieces adrift: <code>drop_floating_pale</code></h3>
+<p>Removing a white background can leave loose threads of a sticker's line floating in the void. On white they cannot be seen; on a color, they can.</p>
+<<< real 2 pix
+{{fl_before}} | Before, on dark
+{{fl_after}} | After
+{{fl_z_src}} | Source
+{{fl_z_before}} | Before, magnified
+===
+The edges of <code>leaves</code>. A piece goes if it touches only background, lies within 26 of it and is thin. {{fl_count}} pieces go. This cleaning has a cost: the sticker really had that border, and now it does not.
+>>>
+
+<h2 id="c8">8. Geometry: the heart of it</h2>
+<p>If one idea defines unpixel, it is this one.</p>
+<p>A simple way to build a multi-color vector is to trace each color on its own, with a tracer such as potrace. The pink's contour is computed looking only at the pink, the black's looking only at the black. That is two computations of the same border, and nothing makes them agree. To hide the slits, each lower layer is then extended under the ones above it.</p>
+<p>unpixel computes <b>the border itself</b>, and both regions use it.</p>
+<<< diagram
+{{d_walls}}
+===
+Drawn by hand, with the differences exaggerated. On the right, one list of coordinates serves both sides.
+>>>
+<h3>The planar map</h3>
+<p>Walls run along the <b>cracks</b> between pixels of different classes. A point where three or more cracks meet is a <b>junction</b>. A stretch of wall between two junctions is an <b>arc</b>. Regions are loops of arcs.</p>
+<<< real 3 pix
+{{f8_src}} | Source
+{{f8_cl}} | Classes
+{{f8_arcs}} | Arcs and junctions
+===
+The window of the image with the most junctions. Each arc has a color and junctions are black dots: {{arcs_here}} arcs and {{junctions_here}} junctions here. Across the axolotl there are {{arcs_total}} arcs and {{junctions_total}} junctions. This is the real structure from <code>planar.build</code>.
+>>>
+<p>To compare fairly, we can trace unpixel's own class map the general way, with potrace on each color. Same regions, same colors; only the tracing differs. unpixel does not work like this: it is a demonstration of the technique.</p>
+<<< real 3
+{{f8_lines_ind_cut}} | Traced per color, edge to edge
+{{f8_lines_ind}} | Traced per color, with underlap
+{{f8_lines_out}} | unpixel, <code>cutout</code>
+===
+The real paths in that window, with no fill, each in its color. With underlap the lines double: each layer runs on under those above. Those are curves the SVG contains though nobody sees them, and a machine would receive them.
+>>>
+<p>Are the curves really shared? It can be measured in the file: count how many times each segment appears in the fills, with its exact coordinates.</p>
+<<< data
+<div class="tw"><table><thead><tr><th rowspan="2">Image</th><th colspan="2">Traced per color</th><th colspan="3">unpixel <code>cutout</code></th></tr><tr><th>Segments</th><th>Exact in two places</th><th>Segments</th><th>Exact in two places</th><th>In more than two</th></tr></thead><tbody>{{t8_shared}}</tbody></table></div>
+===
+Measured in the written SVGs. In unpixel, what does not appear twice is what faces the background: on the axolotl, {{once_axolotl}} single segments against {{on_bg_axolotl}} segments on arcs with background. Tracing per color also gets an identical share, since potrace on two complementary masks sometimes gives the same result; but that is luck, not a guarantee.
+>>>
+<div class="note"><b>A nuance.</b> “One curve per wall” is true of the geometry, not of the file. The SVG writes each wall twice, once per region. A plotter following the paths as they are will pass twice over each interior wall, on the very same line. Neither the command line nor the engine removes that duplication today.</div>
+<h3>From crack to curve</h3>
+<p>A wall fresh from the map is a staircase. Four steps turn it into a curve.</p>
+<<< real 2 pix
+{{f8_w1}} | 1. Cracks: the staircase of the 2× map
+{{f8_w2}} | 2. <code>_subpixel</code>: where color crosses halfway
+{{f8_w3}} | 3. <code>smooth_chains</code>: smooth without shrinking
+{{f8_w4}} | 4. <code>fit_chains</code>: cubics and nodes
+===
+A wall of the helmet. From {{wall_cracks}} cracks to {{wall_segments}} curves (the orange dots). The steps: each point moves to where the image's color crosses halfway between the two classes; a Gaussian smoothing with its shrinkage put back, <code>G(x) + G(x − G(x))</code>; and a Bézier fit to 0.45 px, or 0.6 on low-contrast walls.
+>>>
+<p>At a junction, every wall ends on the same coordinate: the average of the first points of those arriving. And if a wall runs straight through, its two halves share a tangent, so no kink appears.</p>
+<h3>Corners</h3>
+<p>Smoothing is good except where the drawing has a true corner. Corners are sought at three smoothing scales (0.8, 1.5 and 2.4 px). A staircase turns only at the fine scale. A wide curve reaches a high angle only at the coarse one. A real corner turns at all three.</p>
+<p>Then a second filter. It must turn abruptly (at least 60° within 2.6 px) or be a tip (110° to 165° within 5 px). The round end of a stroke turns nearly 180° and does not pass. The rule: smooth, unless the source has an abrupt cut.</p>
+<<< real 4 pix
+{{f8_hair_src}} | Source
+{{f8_hair}} | Hair: {{corners_hair_kept}} of {{corners_hair_cand}}
+{{f8_ends}} | Strokes: {{corners_ends_kept}} of {{corners_ends_cand}}
+{{f8_star}} | Star: {{corners_star_kept}} of {{corners_star_cand}}
+===
+Yellow: candidates from <code>find_corners</code>. Magenta: those that stay. In the Little Prince's hair, tips survive. On the UFO's little lines, round ends are discarded, as they should be. <b>On the axolotl's star, all four tips are discarded</b>, and they come out very sharp but rounded: see figure 1.2. Across the axolotl, {{corners_kept}} of {{corners_found}} stay; in the Little Prince, {{corners_kept_p}} of {{corners_found_p}}.
+>>>
+<<< real 2 pix
+{{f8_nodes_i}} | Traced per color: {{nodes_i}} nodes
+{{f8_nodes_o}} | unpixel: {{nodes_o}} nodes
+===
+The nodes of the fills in the same window, from the same class map. Tracing per color needs fewer nodes here: a lower node count is not what shared walls buy.
+>>>
+<h3>Gaps, trap strokes and hairlines</h3>
+<p>With two regions sharing an exact wall, is any gap left? In geometry, no. When drawn, yes. An antialiasing renderer paints A's edge at 50% and then B's at 50% on top. The result covers 75%, and the background shows through. That is a <b>hairline</b>, and it does not depend on perfect geometry.</p>
+<<< real 2 pix
+{{f8_real_ic}} | Traced per color, edge to edge
+{{f8_real_oc}} | unpixel <code>cutout</code>
+{{f8_real_is}} | Traced per color, with underlap
+{{f8_real_os}} | unpixel <code>stacked</code>
+===
+Each SVG at real size, on pure green, then magnified with no smoothing. Edge to edge, the seam shows where two colors touch: a single curve does not remove it. With underlap or with trap strokes, it goes. The green patch at the left, in all four, is real background.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th><code>stacked</code></th><th><code>cutout</code></th></tr></thead><tbody>{{t8_hair}}</tbody></table></div>
+===
+Translucent pixels inside the artwork (alpha &lt; 250) in unpixel's output, with <code>rsvg-convert</code> at real size and <code>tools/engine/measure.py</code>.
+>>>
+<p>Tracing per color usually solves this with an underlap, here {{overlap_src}} source pixels. That is simple and robust, but it adds a lot of hidden geometry.</p>
+<<< real 2
+{{f8_hid_cut}} | Layer {{hid_color}}, edge to edge
+{{f8_hid_stk}} | Same layer, with underlap
+===
+The layer that grows most in the demonstration. See how it fattens: this shape is not the one in the drawing, since its extra part hides under others.
+>>>
+<p>unpixel does not touch the fills. After a color's fills, it strokes in that same color the walls it shares with upper layers. The upper layers land on their own color, leaving nothing below to show. This is a <b>trap stroke</b>.</p>
+<<< diagram
+{{d_trap}}
+===
+Drawn by hand: a cross section. The stroke, in the lower color, stays under the antialiased edge of the fill above. Its reach is {{under}} px or, when the upper shape is very thin, half its thickness.
+>>>
+<<< real 2
+{{f8_fills}} | Fills only
+{{f8_traps}} | Trap strokes only
+===
+The two real parts of the axolotl's SVG. In all there are {{trap_paths}} trap paths, of widths {{trap_widths}} px. They are written as polylines simplified to {{trap_tol}} px, since nobody sees their shape. Even so, a <code>stacked</code> SVG weighs a good deal more than its <code>cutout</code>. Each stroke also carries <code>data-shapes</code>, naming the shape that owns each wall, so a recoloring tool need not guess from geometry.
+>>>
+<h3>Stacked or cutout</h3>
+<p><code>stacked</code> writes fills and traps, and orders layers by thickness: thick at the bottom, thin on top, so that walls on what is thin stay exact. <code>cutout</code> writes only fills, ordered by area. It is meant for plotters and screen printing, and will show seams on screen.</p>
+
+<h2 id="c9">9. Results on the battery</h2>
+<p>Drag the slider to compare the source with unpixel. Change the image or the zoom.</p>
+<figure class="fig" id="f9-1">{{d_viewer}}<figcaption class="cap"><b>Figure 9.1</b> <span class="tag real">Real run</span> Each image is a real SVG drawn with <code>rsvg-convert</code> on white, at 1100 px at most. The SVGs are linked too, so you can magnify them without limit in a browser.</figcaption></figure>
+<script type="application/json" id="viewer-data">{{viewer_json}}</script>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th>Colors</th><th>Paths</th><th>Nodes</th><th>Nodes /100 px</th><th>Turns &gt; 30° /1000 px</th><th>KB</th><th>Mean ΔE</th><th>p95 ΔE</th></tr></thead><tbody>{{t9_all}}</tbody></table></div>
+===
+<code>stacked</code>, measured in the written SVG with <code>tools/engine/measure.py</code>. Turns at junctions do not count. Mean ΔE says nothing about the defects in chapter 10.
+>>>
+<h3>Time and memory</h3>
+<<< data
+{{c9_time}}
+===
+Seconds per stage, one run per image on a machine that was not reserved. Hover over a segment to see its value. The stages are grouped; the table below has them all.
+>>>
+<<< data
+<div class="g g2 st"><div class="tw"><table><thead><tr><th>Image</th><th>Seconds</th><th>Peak MB</th></tr></thead><tbody>{{t9_time}}</tbody></table></div><div class="tw"><table><thead><tr><th>Stage</th><th>Mean seconds</th></tr></thead><tbody>{{t9_stages}}</tbody></table></div></div>
+===
+The engine alone, with no report or preview, each image in its own process. Memory is that process's peak.
+>>>
+
+<h2 id="c10">10. Still imperfect or unverified</h2>
+<p>This is what is still wrong or untested in unpixel, checked at this commit.</p>
+<h3>Sharp turns, colors and size</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th>Turns &gt; 30° /1000 px</th><th>Colors</th><th><code>stacked</code> KB</th><th><code>cutout</code> KB</th></tr></thead><tbody>{{t10_costs}}</tbody></table></div>
+===
+From the same measurements as chapter 9.
+>>>
+<p><b>Sharp turns.</b> Walls that meet can turn abruptly, and some of those turns are true corners. But some are points where the source is round, and telling them apart takes an eye, not a formula. <code>leaves</code> has the most.</p>
+<p><b>More colors.</b> Past 16 colors needs a reason, yet several images go over: {{over16}}. Nothing in the code seeks fewer colors once what is visible is covered.</p>
+<p><b>Size.</b> Traps have a weight: the same image in <code>cutout</code> is {{trap_share_lo}} to {{trap_share_hi}} smaller than <code>stacked</code>.</p>
+<h3>Defects you can see</h3>
+<<< real 2 pix
+{{f10_lathe_src}} | Source
+{{f10_lathe_out}} | unpixel
+===
+<code>watchmaker</code>, the lathe. The grays of the metal are followed well, but blue-green flecks appear, and the white reflections on the spindle and pulley are exaggerated.
+>>>
+<<< real 2 pix
+{{f10_lantern_src}} | Source
+{{f10_lantern_out}} | unpixel
+===
+<code>diver</code>, the lantern. The glow becomes smooth bands, but the interior is duller than the source, and the body lighter and more mottled.
+>>>
+<<< real 2 pix
+{{f10_sunset_src}} | Source
+{{f10_sunset_out}} | unpixel
+===
+<code>sunset</code>. <b>Little is left of the antennae but their balls</b>, and the face's gradient becomes very visible bands.
+>>>
+<<< real 2 pix
+{{f10_mouth2_src}} | Source
+{{f10_mouth2_out}} | unpixel
+{{f10_mouth_src}} | Source
+{{f10_mouth_out}} | unpixel
+===
+The mouth is coral in the source and comes out pink. In <code>float</code> (above) there is also an orange fleck.
+>>>
+<<< real 2 pix
+{{f10_ghost_src}} | Source
+{{f10_ghost_out}} | unpixel
+===
+<code>ghost</code>. The drawing reads, but its pale contour is uneven up close, slightly angular.
+>>>
+<h3>Stickers and holes</h3>
+<<< real 2
+{{f10_ground_leaves}} | <code>leaves</code>
+{{f10_ground_float}} | <code>float</code>
+===
+On a colored ground, the limits show. <code>leaves</code> loses its sticker. <code>float</code> keeps a whole white sticker with the fence's holes opaque. <code>battery/README.md</code> says those holes should become transparent; unpixel does not do that without <code>--also-transparent</code>, though the command line warns about it.
+>>>
+<h3><code>--also-transparent</code> and thin marks</h3>
+<p>The CLI's help says that thin marks blending into the chosen color go with it. In unpixel they do not: <code>adapter.py</code> removes only classes within ΔE 8 of that color. This comes from reading the code; the figure below shows a different consequence, not that case on its own.</p>
+<<< real 2 pix
+{{f10_also_src}} | Source
+{{f10_also}} | <code>--also-transparent {{also_color}}</code>
+===
+The color the command line's own warning suggests, on blue. The sticker's white and the helmet's <b>white highlight</b> are the same class, so the helmet ends up with holes.
+>>>
+<h3>Holes of 1 or 2 pixels</h3>
+<p>The CLI counts <code>holes_in_artwork</code> with its own rasterizer, and flags a few. Two known ones are in <code>float</code> near (347, 200) and <code>leaves</code> near (816, 454). They were checked with two other renderers.</p>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th>x, y</th><th><code>holes_in_artwork</code></th><th>Alpha, <code>unpixel.render</code></th><th>Alpha, <code>rsvg-convert</code></th><th>Alpha, Chromium</th></tr></thead><tbody>{{t10_pin}}</tbody></table></div>
+===
+Alpha at that exact pixel, at real size. 0 is fully transparent; 255, opaque.
+>>>
+<<< real 3 pix
+{{f10_pin_float_src}} | Source
+{{f10_pin_float_inner}} | <code>unpixel.render</code>
+{{f10_pin_float_rsvg}} | <code>rsvg-convert</code>
+{{f10_pin_leaves_src}} | Source
+{{f10_pin_leaves_inner}} | <code>unpixel.render</code>
+{{f10_pin_leaves_rsvg}} | <code>rsvg-convert</code>
+===
+On magenta. The built-in rasterizer, which has no antialiasing and does not read trap strokes, leaves a magenta pixel on a diagonal step. <code>rsvg-convert</code> and Chromium do not show it at those points. So these two are not holes a user sees in those renderers. <b>The cause inside the rasterizer is not established</b>, and other points and sizes were not checked at this level.
+>>>
+<h3>Translucent dots in the browser</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Image</th><th><code>stacked</code></th><th><code>cutout</code></th></tr></thead><tbody>{{t10_browser}}</tbody></table></div>
+===
+Pixels with alpha &lt; 200 inside the artwork at 1× / 3× / 0.25×, in {{browser_version}}, commit {{browser_commit}}. This pass is separate from the generator (<code>tools/book/browser_counts.py</code>). <code>stacked</code> leaves few at 1×, and more at 3×. Part of what is counted is real inlets of the background, not gaps: they were not separated out.
+>>>
+<h3>Very large images</h3>
+<p>With <code>leaves</code> upscaled to 24 megapixels, unpixel took {{big_s}} s and peaked at {{big_mb}} MB, several times the memory of the battery's images, although above 12 megapixels it works on a reduced image. Detail finer than that reduced grid is lost.</p>
+<h3>Not tested</h3>
+<ul>
+<li><b>Illustrator, Inkscape, print RIPs:</b> nothing. Only <code>rsvg-convert</code> and Chromium.</li>
+<li><b>A real plotter or printer:</b> nothing. All this book says about them is reasoning from the paths.</li>
+<li>Trap strokes are strokes. In an editor with “scale strokes” off they would change width. A cutter should use <code>cutout</code>.</li>
+<li>Measurements come from a single run, on a machine that was not reserved.</li>
+<li>Not looked at again at this commit: dark bridges over the axolotl's thin straps, the telescope's broken lines and the donut frosting's blotches. They may still be there.</li>
+</ul>
+
+<h2 id="c11">Glossary</h2>
+<dl class="gl">
+<dt>Antialiasing</dt><dd>Edge pixels that blend the two neighboring colors so the edge looks smooth.</dd>
+<dt>Arc</dt><dd>A stretch of wall between two junctions, or a closed loop.</dd>
+<dt>Cubic Bézier</dt><dd>A curve defined by two nodes and two handles.</dd>
+<dt>Chroma</dt><dd>How strong a color is: how far from gray. In Lab, <code>hypot(a, b)</code>.</dd>
+<dt>CIE76, ΔE</dt><dd>Straight-line distance between two colors in Lab. Simple and imperfect.</dd>
+<dt>Class</dt><dd>A pixel's color label: its palette index, or background.</dd>
+<dt>Crack</dt><dd>The side shared by two neighboring pixels of different classes.</dd>
+<dt>Farthest point</dt><dd>A way to pick colors: always the one farthest from those already picked.</dd>
+<dt>Hairline</dt><dd>A faint line a renderer leaves between two touching shapes, because of its antialiasing.</dd>
+<dt>Junction</dt><dd>A point where three or more walls meet, or where a wall leaves the image.</dd>
+<dt>Mask</dt><dd>A yes-or-no image over the pixels.</dd>
+<dt>Node</dt><dd>A point a curve passes through, where one segment ends and another begins.</dd>
+<dt>Planar map</dt><dd>Regions represented as shared walls and junctions.</dd>
+<dt>Solid</dt><dd>A pixel that is neither transition nor background. The only ones that vote on the palette.</dd>
+<dt>Stacked, cutout</dt><dd>Layers with trap strokes so no seams show, against layers that only touch.</dd>
+<dt>Transition</dt><dd>A pixel explained as a mix of those on its sides.</dd>
+<dt>Trap stroke</dt><dd>A stroke of the lower color along a wall, so the upper color's edge does not let the background through.</dd>
+</dl>
+<footer>Generated by <code>tools/book/make.py</code> on commit <code>{{commit}}</code>, with <code>uv run --no-project --with numpy --with pillow --with scipy --with potracer python tools/book/make.py</code>. Raw measurements are in <a href="measurements.json">measurements.json</a>. Headings in Pixelify Sans, under the <a href="OFL-PixelifySans.txt">SIL Open Font License</a>, embedded in the page.</footer>

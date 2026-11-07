@@ -1,4 +1,4 @@
-"""Every number in the book: real runs of both engines over the battery, measured with tools/engine/measure.py."""
+"""Every number in the book: real runs of unpixel over the battery, measured with tools/engine/measure.py."""
 
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ BIG_PIXELS = 24_000_000
 WINDOWS = (3, 6, 9, 12)
 
 
-def run(image, engine, layers, svg: Path, window=None, redo=False) -> dict:
+def run(image, layers, svg: Path, window=None, redo=False) -> dict:
     side = svg.with_suffix(".json")
     if side.exists() and not redo:
         return json.loads(side.read_text())
-    cmd = [sys.executable, str(HERE / "run_engine.py"), str(image), engine, layers, str(svg)]
+    cmd = [sys.executable, str(HERE / "run_engine.py"), str(image), layers, str(svg)]
     if window:
         cmd += ["--window", str(window)]
     done = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
@@ -104,36 +104,32 @@ def collect(work: Path, log=print) -> dict:
     """Run everything once. Timed runs go one at a time; only the measuring of written files runs in parallel."""
     work.mkdir(parents=True, exist_ok=True)
     runs: dict = {}
-    for engine in ("new", "classic"):
-        for name, src in SOURCES.items():
-            data = run(src, engine, "stacked", work / f"{name}-{engine}-stacked.svg")
-            runs[f"{name}/{engine}/stacked"] = data
-            log(f"  {name:11s} {engine:8s} stacked {data['seconds']:6.1f} s {data['peak_rss_mb']:6.0f} MB")
-    for engine in ("new", "classic"):
-        for name, src in SOURCES.items():
-            runs[f"{name}/{engine}/cutout"] = run(src, engine, "cutout", work / f"{name}-{engine}-cutout.svg")
+    for name, src in SOURCES.items():
+        data = run(src, "stacked", work / f"{name}-stacked.svg")
+        runs[f"{name}/stacked"] = data
+        log(f"  {name:11s} stacked {data['seconds']:6.1f} s {data['peak_rss_mb']:6.0f} MB")
+    for name, src in SOURCES.items():
+        runs[f"{name}/cutout"] = run(src, "cutout", work / f"{name}-cutout.svg")
     log("  cutout done")
     for win in WINDOWS:
         for name, src in SOURCES.items():
-            runs[f"{name}/reach{win}/stacked"] = run(src, "new", "stacked", work / f"{name}-reach{win}-stacked.svg", window=win)
+            runs[f"{name}-reach{win}/stacked"] = run(src, "stacked", work / f"{name}-reach{win}-stacked.svg", window=win)
     log("  reach done")
     big = work / "leaves-24mp.png"
     if not big.exists():
         im = Image.open(SOURCES["leaves"]).convert("RGB")
         k = (BIG_PIXELS / (im.width * im.height)) ** 0.5
         im.resize((round(im.width * k), round(im.height * k)), Image.BICUBIC).save(big)
-    for engine in ("new", "classic"):
-        d = run(big, engine, "stacked", work / f"leaves24-{engine}-stacked.svg")
-        runs[f"leaves24/{engine}/stacked"] = d
-        log(f"  leaves 24 MP {engine}: {d['seconds']:.1f} s {d['peak_rss_mb']:.0f} MB")
+    d = run(big, "stacked", work / "leaves24-stacked.svg")
+    runs["leaves24/stacked"] = d
+    log(f"  leaves 24 MP: {d['seconds']:.1f} s {d['peak_rss_mb']:.0f} MB")
 
     jobs, keys = [], []
     for key, data in runs.items():
-        name, variant, layers = key.split("/")
+        name, layers = key.split("/")
         if name == "leaves24":
             continue
-        scales = (1.0, 0.73, 2.0)
-        jobs.append((SOURCES[name], work / f"{name}-{variant}-{layers}.svg", data["junctions"], scales))
+        jobs.append((SOURCES[name.split("-reach")[0]], work / f"{name}-{layers}.svg", data["junctions"], (1.0, 0.73, 2.0)))
         keys.append(key)
     with ProcessPoolExecutor(8) as pool:
         for key, row in zip(keys, pool.map(measure_svg, jobs)):

@@ -1,0 +1,635 @@
+<h1>Cómo vectorizar una imagen</h1>
+<p class="lead">Un libro con dibujos para aprender a convertir píxeles en curvas, a través de cómo lo hace unpixel. Todas las figuras marcadas como «Ejecución real» salen de correr el código de este repositorio sobre las imágenes de <code>battery/</code>.</p>
+<details class="toc-m"><summary>Capítulos</summary><nav class="toc" aria-label="Capítulos"><ol>{{toc}}</ol></nav></details>
+<p>Vectorizar es decidir dos cosas: <b>qué colores hay</b> y <b>dónde están las fronteras</b> entre ellos. Este libro sigue cómo toma unpixel cada una, y enseña qué le hace cada paso a una imagen real.</p>
+<div class="note">{{usage_note}}</div>
+<div class="note"><b>Cómo leer las figuras.</b> Cada una lleva una etiqueta. <span class="tag real">Ejecución real</span> es salida del código sobre una imagen. <span class="tag data">Datos reales</span> son medidas en forma de tabla o gráfico. <span class="tag diagram">Diagrama</span> es un dibujo hecho a mano para explicar una idea: no es un resultado. Las ampliaciones van sin suavizado, así que cada cuadrado es un píxel.</div>
+
+<h2 id="c1">1. Ráster y vector</h2>
+<p>Un <b>ráster</b> es una rejilla: una lista de cuadrados, cada uno con su color. Un <b>vector</b> es una descripción: «rellena de este color la zona limitada por estas curvas».</p>
+<<< diagram 1
+{{d_raster}}
+===
+Dibujo hecho a mano. Los círculos blancos son <b>nodos</b>, por donde pasa la curva. Los puntos naranjas son <b>manejadores</b>: tiran de la curva sin tocarla.
+>>>
+<p>Al ampliar, se nota la diferencia. El ráster muestra sus cuadrados. El vector se vuelve a calcular a cualquier tamaño.</p>
+<<< real 2 pix
+{{f1_raster}} | Fuente ampliada ×8
+{{f1_vector}} | SVG de unpixel dibujado ×8
+===
+Una estrella del ajolote. A la izquierda, cada cuadrado es un píxel: fíjate en los grises del borde, que no son ningún color del dibujo. A la derecha no hay grises: el borde es una frontera entre dos colores.
+>>>
+<p>Esos grises son el <b>antialiasing</b>: el píxel del borde mezcla los dos colores vecinos. Es el primer enemigo de este oficio, porque añade miles de colores que el autor nunca pintó.</p>
+
+<h3>Por qué colores planos</h3>
+<p>Esta imagen del ajolote tiene {{axolotl_source_colors}} colores distintos. El resultado de unpixel tiene {{axolotl_colors}}. Cada uno es una <b>capa</b> que se puede editar, recortar o imprimir por separado.</p>
+<<< real
+<div class="tiles">{{f1_layers}}</div>
+===
+Las {{axolotl_colors}} capas del SVG real del ajolote, cada una dibujada sola sobre blanco. El nombre es su color. Mira qué pequeñas son algunas: varias son solo un brillo o unos puntos.
+>>>
+<h3>Por qué importan los contornos</h3>
+<p>En pantalla, un contorno regular y uno irregular pueden parecer iguales. Para un plotter o un vinilo, no. La máquina sigue la línea. Cada nodo de más es un titubeo, y cada solape es una pasada donde no debía cortar.</p>
+<<< real 2
+{{f1_filled}} | Lo que ves
+{{f1_pen}} | Lo que sigue la cuchilla
+===
+El mismo SVG (<code>--layers cutout</code>) con relleno y solo con líneas. Fíjate en que una pared aparece como una sola línea aunque el archivo la escribe dos veces, una por cada región: el capítulo 8 vuelve sobre esto.
+>>>
+
+<h2 id="c2">2. El camino completo</h2>
+<p>Primero, el mapa. Los capítulos siguientes recorren cada parada.</p>
+<<< diagram
+{{d_pipeline}}
+===
+El camino de unpixel, leído del código. Decide por <b>píxeles</b> sobre la imagen original, y deja la geometría para el final.
+>>>
+<p>Ahora el mismo recorrido con imágenes. La zona es siempre la misma, la cabeza del ajolote.</p>
+<<< real
+<div class="strip">{{f2_steps}}</div>
+===
+Etapa a etapa. Los píxeles magenta de la tercera imagen son los que no cuentan para decidir la paleta. Las siguientes se ven en bloques porque el mapa de clases es de píxeles; el SVG final, último, ya es curva.
+>>>
+
+<h2 id="c3">3. Distinguir tipos de imagen</h2>
+<p>Un dibujo de píxeles quiere esquinas exactas. Un dibujo a mano quiere curvas suaves. Tratarlos igual estropea uno de los dos, así que unpixel pregunta primero, con <code>classify</code>.</p>
+<p>La pregunta se hace sobre la fuente intacta: de los saltos fuertes de color (ΔE sobre 15) entre vecinos, ¿cuántos ocurren de golpe, con color plano a ambos lados (ΔE bajo 3)?</p>
+<<< data
+<p class="pal-label"><code>synth-pixel</code></p>{{c3_pix}}
+<p class="pal-label"><code>synth-hard</code>: borde sin antialiasing</p>{{c3_hard}}
+<p class="pal-label"><code>synth-aa</code>: mismo dibujo con antialiasing</p>{{c3_aa}}
+<p class="pal-label"><code>axolotl</code>: dibujo real</p>{{c3_soft}}
+===
+Salto de color entre cada píxel y el siguiente, a lo largo de una fila de cada imagen. En las dos primeras, barras solitarias entre ceros: bordes duros. En las dos últimas, varias barras seguidas: el borde se reparte entre píxeles.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th>Tipo</th><th>Bloque</th><th><code>hard_share</code></th><th>Colores</th></tr></thead><tbody>{{t3_kinds}}</tbody></table></div>
+===
+Salida real de <code>classify</code>. Las tres primeras son sintéticas, de <code>tools/engine/synth.py</code>, porque en la batería no hay pixel art ni geometría dura: las nueve imágenes reales son <code>soft</code>. <code>ghost</code> da <code>hard_share</code> 1 porque no tiene ningún salto fuerte, y queda en <code>soft</code> por sus muchos colores.
+>>>
+<p>Las reglas: <code>pixel</code> si hay rejilla (o la imagen es diminuta y con pocos colores); <code>hard</code> si los saltos son limpios y hay como mucho 4096 colores; <code>soft</code> en el resto.</p>
+<h3>Lo que cambia en la salida</h3>
+<<< real 2 pix
+{{f3_px_src}} | Fuente
+{{f3_px_out}} | unpixel
+===
+Esquina de <code>synth-pixel</code>, bloque de {{px_block}} px. unpixel reconoce la rejilla, toma un píxel por bloque y escribe solo rectas: coincide con la fuente.
+>>>
+<<< real 2 pix
+{{f3_h_src}} | Fuente
+{{f3_h_out}} | unpixel
+===
+Punta del triángulo de <code>synth-hard</code>, en escalera por no tener antialiasing. La salida la endereza en bordes limpios.
+>>>
+<h3>Simplificar lo que no es un dibujo</h3>
+<p>¿Qué hacer con una imagen que no es un dibujo, como una foto o puro ruido? Trazar cada grano cuesta muchísimo tiempo y memoria, y deja un archivo que nada puede abrir. Por eso unpixel la simplifica.</p>
+<p>Un resultado con más de {{busy_limit}} regiones se considera demasiado ocupado. <code>segment_new</code> desenfoca la imagen con un sigma de 2 px y vuelve a empezar; si no basta, 4, y luego 8, con el que se queda. Avisa de que lo ha hecho.</p>
+<<< real 3 pix
+{{f3_noise_src}} | Rampa con ruido (generada, semilla fija)
+{{f3_noise_before}} | Sin reintento: {{noise_before_kb}} KB
+{{f3_noise_after}} | Con reintento: {{noise_after_kb}} KB
+===
+De izquierda a derecha: la fuente; <code>pipeline.run</code>, que no reintenta ({{noise_before_regions}} regiones, {{noise_colors}} colores, {{noise_before_s}} s); y la línea de órdenes ({{noise_after_s}} s, {{noise_after_mb}} MB). Regiones por intento: {{noise_attempts}}; se detiene con sigma {{noise_blur}}. El aviso: <i>«{{noise_warning}}»</i>
+>>>
+<p>Con reintento se pierde el grano, y la rampa vuelve a leerse como bandas: lo que se gana es un archivo que se puede abrir. Con ruido puro de 1,5 megapíxeles, la línea de órdenes tarda aquí {{pure_s}} s, con un pico de {{pure_mb}} MB y {{pure_kb}} KB. Según las pruebas de desarrollo de este cambio, no repetidas aquí, el mismo caso sin reintento costaba 360 s, 25 GB y 294 MB.</p>
+<p>El reintento solo está en el camino de la línea de órdenes. Las imágenes de la batería no llegan al límite: la más ocupada tiene unas 1300 regiones, según el código.</p>
+
+<h2 id="c4">4. Color</h2>
+<h3>Lab, y por qué hay que deformarlo</h3>
+<p>Para decidir si dos colores son «el mismo», hay que medir distancias. En RGB esa distancia no se parece a lo que ve el ojo. <b>Lab</b> lo intenta: L es la luminosidad, a y b el tono y su intensidad. La distancia en línea recta se llama <b>CIE76</b> o ΔE.</p>
+<p>CIE76 tiene dos fallos conocidos. Exagera la diferencia entre colores muy saturados, y entre oscuros cuyo tinte nadie aprecia. Con él, un violeta se parte en dos y un contorno negro puede pedir varios negros.</p>
+<p>La respuesta de unpixel es <code>perceptual</code>: comprime el croma (la intensidad del color) donde CIE76 lo exagera. Es exacta e invertible.</p>
+<<< data
+{{c4_compress}}
+===
+Lo que conserva la función real <code>perceptual</code>, medida en una rejilla. Eje horizontal: croma del color. Eje vertical: porcentaje que queda. Las líneas son tres luminosidades: en los oscuros (L = 10) casi todo el croma desaparece.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Par</th><th>ΔE en Lab</th><th>ΔE deformado</th></tr></thead><tbody>{{t4_pairs}}</tbody></table></div>
+===
+Distancia de cuatro pares de colores, antes y después de <code>perceptual</code>. Los violetas saturados y los negros bajan a la mitad. Los pares pálidos y medios cambian poco.
+>>>
+<p>¿Qué pasa si se apaga? Se puede probar: basta con cambiar las dos funciones por la identidad y volver a correr unpixel.</p>
+<<< real 2
+{{f4_warp}} | Con <code>perceptual</code>
+{{f4_nowarp}} | Sin <code>perceptual</code>
+{{s4_warp}}
+{{s4_nowarp}}
+<p class="pal-label">Sin <code>perceptual</code> los violetas del ajolote son {{nowarp_violets}} ({{nowarp_n}} colores en total). Con él, {{warp_violets}} ({{warp_n}} colores).</p>
+<div class="tw"><table><thead><tr><th>Imagen</th><th>Con: colores (oscuros L &lt; 25)</th><th>Sin: colores (oscuros)</th></tr></thead><tbody>{{t4_nowarp}}</tbody></table></div>
+===
+unpixel con la deformación apagada. Paletas ordenadas de oscuro a claro: la de arriba, con <code>perceptual</code>; la de abajo, sin él. Se confirma la partición del violeta. Los «tres negros» que menciona el código <b>no se reproducen</b> en esta batería: sin deformar nunca hay más de {{nowarp_darks_max}} oscuros. Y en algunas imágenes apagarla reduce colores: el efecto no siempre va en la misma dirección.
+>>>
+
+<h3>Por qué se pierden los colores pequeños</h3>
+<p>Fíjate en el Principito: su piel, el brillo del vidrio y el brillo del suelo. Son poca área y mucho significado.</p>
+<p>Una forma general y conocida de elegir colores es <b>k-means</b>. Coloca K centros para minimizar la suma de distancias de todos los píxeles. Cada píxel pesa uno, así que un área grande pesa mucho. Si el cielo se reparte en dos centros, puede ganar más que dedicándole uno a la piel. Los colores pequeños salen perdiendo aunque sean muy distintos.</p>
+<<< real 3 pix
+{{f4_hand_src}} | Fuente
+{{f4_hand_km}} | K-means, 16 colores
+{{f4_hand_out}} | unpixel
+{{f4_glass_src}} | Fuente
+{{f4_glass_km}} | K-means
+{{f4_glass_out}} | unpixel
+{{f4_shine_src}} | Fuente
+{{f4_shine_km}} | K-means
+{{f4_shine_out}} | unpixel
+===
+Tres zonas del Principito. K-means es aquí un método genérico, no parte de unpixel: el de <code>scipy</code>, sobre la imagen en Lab tras una mediana 3×3. Vuelve marrón la mano, funde el vidrio con el cielo y pierde el brillo del suelo. unpixel conserva los tres.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Color en la fuente</th><th>K-means</th><th>unpixel</th></tr></thead><tbody>{{t4_probes}}</tbody></table></div>
+===
+Lo que cada método pintó en el punto más interior de cada color. El cuadrado es el color pintado; el número, su ΔE con la fuente en ese punto. Más alto es peor. Los puntos se localizaron buscando en la propia imagen.
+>>>
+
+<h3>Cómo los protege la paleta de unpixel</h3>
+<p>La idea es <b>punto más lejano</b>. Se toma el color más abundante. Luego, el más lejano a lo elegido. Y así hasta que nada quede lejos. La puntuación es <code>distancia² × masa^0,3</code>: el exponente tan bajo hace que el área solo desempate.</p>
+<<< diagram
+{{d_farthest}}
+===
+Dibujo hecho a mano sobre datos inventados, en dos dimensiones. Cada punto es un color. Una nube grande atrae a los centros de k-means. El punto más lejano mira primero a quien no está representado.
+>>>
+<<< real
+<div class="strip">{{f4_seeds}}</div>
+===
+Las semillas reales del Principito, añadidas una a una. Cada imagen asigna cada píxel a su semilla más cercana con el propio <code>assign</code>. Mira el salto de 1 a 2 (el cielo) y cómo aparecen el amarillo y el verde con muy pocas semillas.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Orden</th><th>Semilla</th><th>Por qué</th><th>Distancia</th><th>Masa</th></tr></thead><tbody>{{t4_seeds}}</tbody></table></div>
+===
+El registro real de <code>build_palette</code>, en la segunda pasada. La masa es el porcentaje de píxeles alrededor de esa casilla. Fíjate en cuántas elecciones tienen una masa menor del 1 %, y en una sorpresa: el vidrio entra en el puesto 7 por pura distancia. Las tres plazas de «brillo» se las llevan aquí otros tonos.
+>>>
+<p>Tras elegir, unas pocas rondas de Lloyd (el paso de k-means) centran cada color sobre lo que explica. El problema de k-means nunca fue ese paso, sino dejar que el área decida el arranque. Los colores protegidos quedan <b>fijados</b>: solo se promedian con lo que tengan a menos de 6 de distancia. Al final, <code>settle_colors</code> cambia cada color por la mediana de sus píxeles sólidos.</p>
+<p>Encima de eso hay dos reservas: brillos y oscuros saturados.</p>
+<h4>Brillos</h4>
+<p>A partir del color 9, hasta tres plazas son para tonos de <code>highlight_mask</code> (capítulo 5). Se puede apagar y ver qué se pierde.</p>
+<<< real 3 pix
+{{f4_hl_src}} | Fuente
+{{f4_hl_on}} | Con brillos: {{dv_on_n}} colores
+{{f4_hl_off}} | Sin brillos: {{dv_off_n}} colores
+{{s4_dv_on}}
+{{s4_dv_off}}
+===
+<code>diver</code>, con la regla encendida y apagada. Sin ella, la paleta deja de tener {{nohl_lost_d}}: el farol pierde su cian más vivo. La sorpresa es el Principito: ahí apagar la regla solo quita {{nohl_lost_p}}, un verde oscuro. <b>El vidrio se salva igual</b>, porque ya está muy lejos de todo lo demás.
+>>>
+<h4>Oscuros saturados</h4>
+<p>Comprimir el croma tiene un coste. El rojo oscuro de un zapato parece, en el espacio deformado, un marrón cualquiera. Por eso estos colores se evalúan en Lab sin deformar: L entre 15 y 38, croma de al menos 35 y 1,6 veces L, y un área con cuerpo.</p>
+<<< real 3 pix
+{{f4_sat_shoe_src}} | Fuente
+{{f4_sat_shoe_on}} | Con la regla
+{{f4_sat_shoe_off}} | Sin ella
+{{f4_sat_scope_src}} | Fuente
+{{f4_sat_scope_on}} | Con la regla
+{{f4_sat_scope_off}} | Sin ella
+===
+Sin la reserva (<code>SAT_DARK_SLOTS = 0</code>) la paleta pierde {{nosat_lost_p}}. El zapato se vuelve marrón con motas rojas y el catalejo pierde su azul. El precio son más colores: {{full_n}} en vez de {{nosat_n}}.
+>>>
+
+<h2 id="c5">5. Máscaras</h2>
+<p>Una <b>máscara</b> es una imagen de sí o no: cada píxel cumple una condición o no la cumple. Son la herramienta central de unpixel. Cada una responde a una pregunta y decide quién puede hacer qué.</p>
+<figure class="fig"><div class="tw"><table><thead><tr><th>Máscara</th><th class="w">Pregunta</th><th class="w">Qué decide</th></tr></thead><tbody>
+<tr><td>Fondo</td><td class="w">¿Lo alcanza una inundación desde el borde?</td><td class="w">Queda transparente. Nada más puede serlo.</td></tr>
+<tr><td>Transición</td><td class="w">¿Es mezcla de sus dos lados?</td><td class="w">No vota en la paleta. Su color se elige solo entre vecinos.</td></tr>
+<tr><td>Sólido</td><td class="w">¿No es ninguna de las anteriores?</td><td class="w">Vota en la paleta y elige color con libertad.</td></tr>
+<tr><td>Brillo</td><td class="w">¿Es sólido y bastante más claro que su entorno?</td><td class="w">Compite por las plazas reservadas de la paleta.</td></tr>
+</tbody></table></div><figcaption class="cap"><span class="tag diagram">Resumen</span> Las cuatro máscaras reales y su papel.</figcaption></figure>
+<h3>Fondo: la inundación</h3>
+<p>¿Es blanco este píxel? No basta. El blanco del interior de un ojo no es fondo. El fondo es lo que se alcanza desde el borde sin atravesar nada.</p>
+<p>El borde de la imagen dicta el color (aquí {{bg_hex}}). Luego: píxeles parecidos a ese color (a {{bg_tau}} como máximo); una erosión de 1 px, para que una rendija no deje pasar la inundación; quedarse con los trozos que tocan el borde; y recuperar con una dilatación lo erosionado.</p>
+<<< real 2
+{{f5_src}} | Fuente
+{{f5_near}} | <code>near</code>: parecidos al fondo
+{{f5_flood}} | <code>flood</code>: los que tocan el borde
+{{f5_final}} | Final. Azul: fondo. Verde: parecido pero encerrado
+===
+Los pasos de <code>find_background</code> sobre <code>float</code>, leídos de la propia función. El fondo es un {{bg_share}} de la imagen. Un {{bg_enclosed}} se parece al fondo pero queda dentro, en verde: esos huecos de la valla y el interior de la pegatina no se tocan.
+>>>
+<<< real 3 pix
+{{f5_src_z}} | Fuente
+{{f5_near_z}} | Parecidos
+{{f5_final_z}} | Final
+===
+Un trozo de la valla. Son blancos iguales al fondo. Pero los cables, en gris, los encierran, y no se vuelven transparentes. Si quieres que lo sean, <code>--also-transparent</code>. La línea de órdenes avisa.
+>>>
+<p>La inundación solo se intenta si el borde es uniforme: el 85 % debe distar menos de 6 de su mediana. En <code>sunset</code> y <code>principito</code> no lo es, y no se quita nada. unpixel lo dice: <i>«{{note_principito}}»</i></p>
+
+<h3>Transición: quién es mezcla</h3>
+<p>Un píxel de borde es, casi literalmente, una mezcla de los píxeles de sus dos lados. <code>transition_mask</code> comprueba eso.</p>
+<<< diagram
+{{d_mix}}
+===
+Dibujo hecho a mano. Los colores son puntos en el espacio Lab. El código prueba cuatro direcciones y coge la de más contraste entre los píxeles opuestos, a 1, 2 y 3 px de distancia. Exige contraste de al menos 12 (30 a 3 px), y un residuo por debajo del 22 % del contraste (mínimo 2,5).
+>>>
+<p>Lo más útil es lo que no marca. El centro de una línea fina no es mezcla: sus dos lados se parecen, así que no hay contraste y falla la prueba. Una línea sobrevive porque su centro se queda sólido.</p>
+<<< real 2 pix
+{{f5_wh_src}} | Fuente: los bigotes del ajolote
+{{f5_wh_tr}} | Magenta: transición
+===
+Los bigotes en magenta por los lados y gris por el centro. Ese centro gris es <b>sólido</b>, y por eso el bigote conserva su color oscuro.
+>>>
+<<< data
+{{f5_row}} | Columna
+{{c5_row}}
+===
+Luminosidad a lo largo de una columna vertical del ajolote (x = {{row_x}}, y de {{row_y0}} a {{row_y1}}; la tira de arriba es esa zona, girada). Los puntos de color rosa están marcados como transición; los azules, como sólidos. Mira el fondo de cada valle: es el centro del bigote y es sólido.
+>>>
+<<< real 3 pix
+{{f5_gill_src}} | Fuente
+{{f5_gill_tr}} | Transición: {{tr_share}} de la imagen
+{{f5_gill_solid}} | Sólido: {{solid_share}} de la imagen
+===
+Las branquias de <code>float</code>. La zona de sombra rosa, entre el contorno oscuro y el rosa vivo, está casi toda en magenta porque es un degradado: recuerda esto para el capítulo 6.
+>>>
+<<< real 2
+{{f5_all_tr}} | Transición
+{{f5_all_solid}} | Sólido
+===
+Las mismas máscaras en toda la imagen <code>float</code>. El resto, en blanco, es fondo.
+>>>
+<h3>Brillos</h3>
+<p>Un brillo es un píxel sólido cuya luminosidad supera en al menos 10 a la media de los 21 × 21 píxeles de alrededor.</p>
+<<< real 2 pix
+{{f5_hl_z_src}} | Fuente
+{{f5_hl_z}} | <code>highlight_mask</code>
+===
+La zona de <code>diver</code> con más brillos (en total, {{hl_share}} de la imagen). Marca los brillos de verdad, y también el lado claro de todo contorno oscuro, ya que allí la media baja: la máscara es generosa. La plaza reservada exige además estar lejos de la paleta.
+>>>
+
+<h2 id="c6">6. Asignación: hasta dónde puede mirar un píxel</h2>
+<p>Con paleta y máscaras, falta dar un color a cada píxel. Un sólido elige el más cercano. Un píxel de transición, no: elige solo entre colores que existan en forma sólida dentro de una ventana. ¿Cómo de grande debe ser? La constante se llama <code>ASSIGN_WINDOW</code>, y la respuesta es un compromiso que merece verse.</p>
+<h3>Sin límite: el halo</h3>
+<p>Entre un contorno oscuro y un relleno verde azulado, la mezcla pasa por un verde oscuro. Si la paleta tiene un verde oscuro en otra parte, el píxel de borde lo coge. Resultado: cada contorno se rodea de un anillo de un tercer color. Eso es un <b>halo</b>, y por eso existe el límite.</p>
+<<< real 4 pix
+{{f6_h_src}} | Fuente
+{{f6_h_lim}} | Alcance {{assign_window}}
+{{f6_h_free}} | Sin límite
+{{f6_h_diff}} | Píxeles que cambian
+===
+El panel del traje del ajolote, antes de limpiar nada. Sin límite para los colores (ventana enorme; solo el fondo sigue limitado), los bordes de botones y cajas se llenan de manchas de un verde más oscuro, de otra parte de la imagen. Con límite no aparecen. En toda la imagen cambian {{halo_changed}} píxeles.
+>>>
+<h3>Poco alcance: la sombra que se vuelve negra</h3>
+<p>Entonces parece mejor una ventana pequeña. Un alcance de 3, una ventana de 7 × 7, evita el halo. Pero mira las branquias de <code>float</code>: partes de la sombra se vuelven negras.</p>
+<<< real 3 pix
+{{f6_src}} | Fuente
+{{f6_r3}} | Alcance 3
+{{f6_r6}} | Alcance 6
+{{f6_r9}} | Alcance 9
+{{f6_r12}} | Alcance 12
+===
+Las mismas branquias en el SVG final con cada alcance. Con 3, grandes trozos de la sombra rosa son del color del contorno. Con 6 casi desaparecen. Con 9 queda algún resto pequeño. Con 12 no hay mejora obvia.
+>>>
+<p>El motivo se ve eligiendo un solo píxel. La sombra es un degradado, así que sus píxeles son de transición. Si el degradado es más ancho que la ventana, no hay rosa sólido a la vista. Solo queda el contorno.</p>
+<<< real 2 pix
+{{f6_window}} | Fuente
+{{f6_window_out}} | Asignación con alcance 3
+===
+El píxel marcado en rosa está en ({{pick_x}}, {{pick_y}}). En la fuente es {{pick_src}}. Con alcance 3 recibe {{pick_got3}}. El cuadrado pequeño es la ventana de 7 × 7. El grande, la de 19 × 19.
+>>>
+<div class="note"><p class="pal-label">Colores sólidos al alcance de ese píxel:</p>
+<p class="pal-label">Con alcance 3</p>{{s6_near3}}
+<p class="pal-label">Con alcance 9</p>{{s6_near9}}</div>
+<<< real 2 pix
+{{f6_wrong3}} | Alcance 3
+{{f6_wrong9}} | Alcance 9
+===
+En negro, los píxeles de la zona que la salida pinta oscuros (L &lt; 25) cuando en la fuente son más de 18 puntos más claros y tienen color (croma &gt; 25). Es una medida hecha para este libro, no parte de unpixel.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th>3</th><th>6</th><th>9</th><th>12</th></tr></thead><tbody>{{t6_wrong}}</tbody></table></div>
+===
+Esos píxeles oscuros de más, en todo el SVG, por imagen y alcance. Baja mucho de 3 a 6, algo de 6 a 9 y poco de 9 a 12.
+>>>
+<h3>Qué cuesta el alcance</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Alcance</th><th>KB total</th><th>Trazados</th><th>Nodos</th><th>Segundos total</th><th>Pico MB</th></tr></thead><tbody>{{t6_cost}}</tbody></table></div>
+<div class="tw"><table><thead><tr><th>KB por imagen</th><th>3</th><th>6</th><th>9</th><th>12</th></tr></thead><tbody>{{t6_kb}}</tbody></table></div>
+===
+Las nueve imágenes con cada alcance, una sola pasada. El tiempo apenas cambia. Más alcance significa más trazados y más KB: de 3 a 9, {{kb_3_to_9}} en total; de 9 a 12, {{kb_9_to_12}}. No todas crecen: de 3 a 9 bajan {{grow_names_shrink}}. De 9 a 12 crecen {{grow_9_12}} de 9.
+>>>
+<p><b>El valor {{assign_window}} lo eligió a ojo</b> el propietario del proyecto, mirando la batería. No hay un óptimo calculado. Lo que dicen los números: 6, 9 y 12 no cuestan tiempo; casi toda la mejora llega antes del 9, y el SVG sigue creciendo después. 6 también era defendible.</p>
+<h3>Por qué el fondo tiene menos alcance</h3>
+<p>El fondo también es un «color» al que se puede llegar. Un brillo muy claro tras un contorno fino ve el fondo por encima de la línea, a 9 px, y se parece más a él que a nada. El brillo se convierte en un agujero.</p>
+<<< real 3 pix
+{{f6_hole_src}} | Fuente
+{{f6_hole_9}} | Fondo con alcance {{assign_window}}
+{{f6_hole_3}} | Fondo con alcance {{background_window}}
+===
+El ovni del ajolote a <code>--colors {{hole_colors}}</code>, sobre magenta para que se vea lo transparente. Si el fondo tuviera el alcance de los colores, el brillo de la cúpula sería un agujero de {{hole_px}} px. De ahí <code>BACKGROUND_WINDOW = {{background_window}}</code>: los colores se ven a {{assign_window}}, el fondo solo a {{background_window}}. Se ha reproducido cambiando esa constante.
+>>>
+<p>La lección: una ventana nunca fue una sola decisión. Son dos preguntas distintas, y cada una necesita su distancia.</p>
+
+<h2 id="c7">7. Limpieza</h2>
+<p>Tras asignar queda basura. Cada regla de limpieza responde a un tipo de basura, y cada una puede equivocarse. Aquí van con sus aciertos y, cuando los hay, sus errores.</p>
+<h3>El voto de los vecinos</h3>
+<p>Dentro de <code>assign</code>, cada píxel paga un coste de hasta 5 ΔE por discrepar de sus 3 × 3 vecinos. Las motas entre tonos parecidos caen. Un punto oscuro aislado, que dista mucho de todo, se queda.</p>
+<<< real 2 pix
+{{v_a}} | Sin rondas de voto
+{{v_b}} | Con tres rondas
+===
+La misma llamada a <code>assign</code> con <code>rounds=0</code> y con <code>rounds=3</code>, en el ajolote. Fíjate en los bordes: el escalonado de tonos parecidos se limpia, y el punto oscuro sigue. Afecta a {{v_changed}} píxeles.
+>>>
+<h3>Franjas: <code>dissolve_fringes</code></h3>
+<p>Una banda fina cuyo color queda entre los de sus dos lados no es un color: es un borde. Cada píxel de la banda se va al lado más cercano. Una línea fina de verdad se salva: su color no queda entre sus vecinos, o tiene el mismo a ambos lados.</p>
+<<< real 2 pix
+{{fr_src}} | Fuente
+{{fr_before}} | Antes
+{{fr_diff}} | Magenta: lo disuelto
+{{fr_after}} | Después
+===
+El pecho de <code>float</code>. Antes, un anillo verde oscuro rodea cada contorno de la caja. Se disuelve. En la imagen, {{fr_count}} píxeles.
+>>>
+<p>Aquí hay un truco: unpixel pasa <b>dos veces</b>. Las bandas halladas en la primera se añaden a la máscara de transición, y dejan de votar en la paleta de la segunda.</p>
+<<< real
+<p class="pal-label">Primera pasada, {{pass1_n}} colores</p>{{s7_pass1}}
+<p class="pal-label">Segunda pasada, {{pass2_n}} colores</p>{{s7_pass2}}
+===
+Paletas reales de <code>float</code> en cada pasada.
+>>>
+<h3>Doblar el mapa: <code>refine_double</code></h3>
+<<< real 2 pix
+{{re_a}} | Cada píxel, cuatro iguales
+{{re_b}} | Tras <code>refine_double</code>
+===
+Una flor del Principito. El mapa se dobla y, junto a las paredes, cada píxel nuevo toma el color más parecido entre sus vecinos, comparando con la imagen interpolada. La escalera se suaviza antes de medir las curvas.
+>>>
+<h3>Motas: <code>absorb_specks</code></h3>
+<p>Una pieza de menos de 12 px de la fuente pasa al vecino de color más cercano. Si destaca (ΔE ≥ 25), solo se absorbe por debajo de 4 px. Y una pieza de menos de 60 px que casi no difiere (ΔE &lt; 16) también se va, porque es textura.</p>
+<<< real 2 pix
+{{sq_src}} | Fuente
+{{sq_before}} | Antes
+{{sq_diff}} | Magenta: absorbido
+{{sq_after}} | Después
+===
+Una hoja del Principito. Se van unos trozos sueltos junto al vidrio y al contorno, y cambia un retal en la franja verde de abajo.
+>>>
+<<< real 2 pix
+{{sp_src}} | Fuente
+{{sp_before}} | Antes
+{{sp_diff}} | Magenta: absorbido
+{{sp_after}} | Después
+===
+El farol de <code>diver</code>, donde más cambia. Aquí la regla hace daño: cada tramo del alambre en cruz es una pieza pequeña y poco contrastada, así que los tramos se absorben. La cruz queda cortada.
+>>>
+<h3>Multitudes: <code>dissolve_speckle</code></h3>
+<p>La idea: una mota es textura si es poco contrastada (ΔE &lt; 32), pequeña (≤ 40 px), con un solo vecino y rodeada de otras así (más de 4 a 30 px). Se pensó para roca moteada y puntos en una sombra.</p>
+<<< real 2 pix
+{{cr_src}} | Fuente
+{{cr_before}} | Antes
+{{cr_diff}} | Magenta: disuelto
+{{cr_after}} | Después
+===
+El bolsillo del peto en <code>watchmaker</code>, {{cr_islands}} islas. <b>Esto es un fallo.</b> Esas «islas» son las puntadas del bolsillo, que están en la fuente. Una costura es justo una multitud de marcas pequeñas y poco contrastadas.
+>>>
+<<< real 2 pix
+{{cf_src}} | Fuente
+{{cf_before}} | Antes
+{{cf_diff}} | Magenta: disuelto
+{{cf_after}} | Después
+===
+El lazo salado de <code>float</code>, {{cf_islands}} islas: unpixel borra varios granos de sal que la fuente tiene. Islas disueltas aquí: {{cr_per}}. En los dos casos mirados de cerca, lo que se va es detalle real. La regla merece revisarse.
+>>>
+<h3>Trozos a la deriva: <code>drop_floating_pale</code></h3>
+<p>Al quitar un fondo blanco pueden quedar hilos sueltos de la línea de la pegatina flotando en el vacío. Sobre blanco no se ven; sobre color, sí.</p>
+<<< real 2 pix
+{{fl_before}} | Antes, sobre oscuro
+{{fl_after}} | Después
+{{fl_z_src}} | Fuente
+{{fl_z_before}} | Antes, ampliado
+===
+Los límites de <code>leaves</code>. Una pieza se va si solo toca fondo, si dista ≤ 26 de él y si es fina. Se van {{fl_count}} piezas. Es una limpieza con coste: la pegatina tenía de verdad ese borde, y ahora no está.
+>>>
+
+<h2 id="c8">8. Geometría: el corazón del asunto</h2>
+<p>Si hay una idea que define a unpixel, es esta.</p>
+<p>Una forma sencilla de construir un vector de varios colores es trazar cada color por separado, con un trazador como potrace. El contorno del rosa se calcula mirando solo el rosa, y el del negro, mirando solo el negro. Son dos cálculos de la misma frontera, y nada obliga a que coincidan. Para que no se vean rendijas, cada capa inferior se extiende luego por debajo de las superiores.</p>
+<p>unpixel calcula <b>la frontera misma</b>, y las dos regiones la usan.</p>
+<<< diagram
+{{d_walls}}
+===
+Dibujo hecho a mano, con las diferencias exageradas. A la derecha, la misma lista de coordenadas sirve para ambos lados.
+>>>
+<h3>El mapa plano</h3>
+<p>Las paredes pasan por las <b>grietas</b> entre píxeles de distinta clase. Un punto donde se tocan tres o más grietas es un <b>cruce</b>. Un tramo de pared entre dos cruces es un <b>arco</b>. Las regiones son vueltas de arcos.</p>
+<<< real 3 pix
+{{f8_src}} | Fuente
+{{f8_cl}} | Clases
+{{f8_arcs}} | Arcos y cruces
+===
+La ventana de la imagen con más cruces. Cada arco tiene un color y los cruces son puntos negros: {{arcs_here}} arcos y {{junctions_here}} cruces aquí. En todo el ajolote hay {{arcs_total}} arcos y {{junctions_total}} cruces. Es la estructura real de <code>planar.build</code>.
+>>>
+<p>Para comparar en igualdad, podemos trazar el propio mapa de clases de unpixel a la manera general, con potrace en cada color. Mismas regiones, mismos colores; solo cambia el trazado. unpixel no funciona así: es una demostración de la técnica.</p>
+<<< real 3
+{{f8_lines_ind_cut}} | Trazado por color, borde con borde
+{{f8_lines_ind}} | Trazado por color, con solape
+{{f8_lines_out}} | unpixel, <code>cutout</code>
+===
+Los trazados reales en esa ventana, sin relleno y cada uno de su color. Con solape se ven dobles: cada capa sigue por debajo de las de arriba. Son curvas que el SVG contiene aunque no se vean, y una máquina las recibiría.
+>>>
+<p>¿Se comparten de verdad? Se puede medir en el archivo: contar cuántas veces aparece cada segmento en los rellenos, con sus coordenadas exactas.</p>
+<<< data
+<div class="tw"><table><thead><tr><th rowspan="2">Imagen</th><th colspan="2">Trazado por color</th><th colspan="3">unpixel <code>cutout</code></th></tr><tr><th>Segmentos</th><th>Exactos en dos sitios</th><th>Segmentos</th><th>Exactos en dos sitios</th><th>En más de dos</th></tr></thead><tbody>{{t8_shared}}</tbody></table></div>
+===
+Medido en los SVG escritos. En unpixel, lo que no aparece dos veces es lo que da al fondo: en el ajolote, {{once_axolotl}} segmentos sueltos frente a {{on_bg_axolotl}} segmentos en arcos con fondo. Al trazar por color también hay una parte idéntica, porque potrace sobre dos máscaras complementarias a veces da lo mismo; pero es casualidad, no una garantía.
+>>>
+<div class="note"><b>Un matiz.</b> «Una curva por pared» es cierto de la geometría, no del archivo. El SVG escribe cada pared dos veces, una en cada región. Un plotter que siga los trazados tal cual pasará dos veces por cada pared interior, sobre la misma línea exacta. Ni la línea de órdenes ni el motor eliminan hoy esa duplicación.</div>
+<h3>De grieta a curva</h3>
+<p>Una pared recién salida del mapa es una escalera. Cuatro pasos la convierten en curva.</p>
+<<< real 2 pix
+{{f8_w1}} | 1. Grietas: la escalera del mapa ×2
+{{f8_w2}} | 2. <code>_subpixel</code>: donde el color cruza la mitad
+{{f8_w3}} | 3. <code>smooth_chains</code>: suavizar sin encoger
+{{f8_w4}} | 4. <code>fit_chains</code>: cúbicas y nodos
+===
+Una pared del casco. De {{wall_cracks}} grietas a {{wall_segments}} curvas (los puntos naranjas). Los pasos: cada punto se desplaza a donde el color de la imagen cruza la mitad entre las dos clases; un suavizado gaussiano con su encogimiento compensado, <code>G(x) + G(x − G(x))</code>; y un ajuste de Bézier a 0,45 px, 0,6 en paredes de poco contraste.
+>>>
+<p>En un cruce, cada pared se acaba en la misma coordenada: la media de los primeros puntos de las que llegan. Y si una pared cruza recto, las dos mitades comparten tangente, para que no aparezca un codo.</p>
+<h3>Esquinas</h3>
+<p>Suavizar es bueno salvo donde el dibujo tiene una esquina de verdad. Las esquinas se buscan a tres escalas de suavizado (0,8; 1,5 y 2,4 px). Una escalera solo gira a la escala fina. Una curva amplia solo llega a un ángulo alto a la gruesa. Una esquina auténtica gira en las tres.</p>
+<p>Luego hay un segundo filtro. Debe girar de golpe (al menos 60° en menos de 2,6 px) o ser una punta (de 110° a 165° en menos de 5 px). El final redondeado de un trazo gira casi 180° y no pasa. La regla: suave, salvo un corte abrupto.</p>
+<<< real 4 pix
+{{f8_hair_src}} | Fuente
+{{f8_hair}} | Pelo: {{corners_hair_kept}} de {{corners_hair_cand}}
+{{f8_ends}} | Trazos: {{corners_ends_kept}} de {{corners_ends_cand}}
+{{f8_star}} | Estrella: {{corners_star_kept}} de {{corners_star_cand}}
+===
+Amarillo: candidatas de <code>find_corners</code>. Magenta: las que quedan. En el pelo del Principito se conservan puntas. En las rayitas del ovni se descartan los extremos redondeados, como debe ser. <b>En la estrella del ajolote se descartan las cuatro puntas</b>, y quedan muy agudas pero redondeadas: mira la figura 1.2. En todo el ajolote quedan {{corners_kept}} de {{corners_found}}; en el Principito, {{corners_kept_p}} de {{corners_found_p}}.
+>>>
+<<< real 2 pix
+{{f8_nodes_i}} | Trazado por color: {{nodes_i}} nodos
+{{f8_nodes_o}} | unpixel: {{nodes_o}} nodos
+===
+Los nodos de los rellenos en la misma ventana, a partir del mismo mapa de clases. Trazar por color necesita aquí menos nodos: lo que dan las paredes compartidas no es un recuento menor.
+>>>
+<h3>Huecos, trazos trampa y líneas finas</h3>
+<p>Con dos regiones que comparten pared exacta, ¿queda algún hueco? En geometría, no. Al dibujar, sí. Un renderizador con antialiasing pinta el borde de A al 50 % y encima el de B al 50 %. El resultado cubre el 75 %: por ahí se ve el fondo. Es una <b>línea fina</b> (hairline), y no depende de que la geometría sea perfecta.</p>
+<<< real 2 pix
+{{f8_real_ic}} | Trazado por color, borde con borde
+{{f8_real_oc}} | unpixel <code>cutout</code>
+{{f8_real_is}} | Trazado por color, con solape
+{{f8_real_os}} | unpixel <code>stacked</code>
+===
+Cada SVG a tamaño real, sobre verde puro, y luego ampliado sin suavizar. Borde con borde, la costura se ve donde se tocan dos colores: una sola curva no la elimina. Con solape o con trazos trampa, se va. La mancha verde de la izquierda, en las cuatro, es fondo de verdad.
+>>>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th><code>stacked</code></th><th><code>cutout</code></th></tr></thead><tbody>{{t8_hair}}</tbody></table></div>
+===
+Píxeles translúcidos dentro de la obra (alfa &lt; 250) en la salida de unpixel, con <code>rsvg-convert</code> a tamaño real y <code>tools/engine/measure.py</code>.
+>>>
+<p>Trazar por color suele resolver esto con un solape, aquí de {{overlap_src}} px de la fuente. Es sencillo y robusto, pero mete mucha geometría oculta.</p>
+<<< real 2
+{{f8_hid_cut}} | Capa {{hid_color}}, borde con borde
+{{f8_hid_stk}} | Misma capa, con solape
+===
+La capa que más crece en la demostración. Mira cómo engorda: esta forma no es la del dibujo, ya que su parte extra queda oculta debajo de otras.
+>>>
+<p>unpixel no toca los rellenos. Después de los rellenos de un color, traza con ese mismo color las paredes que tiene con las capas superiores. Las capas superiores aterrizan sobre su propio color, sin dejar nada debajo por ver. Es un <b>trazo trampa</b> (<i>trap</i>).</p>
+<<< diagram
+{{d_trap}}
+===
+Dibujo hecho a mano de un corte. El trazo, del color inferior, se queda bajo el borde antialiasado del relleno de arriba. El alcance es de {{under}} px o, si la forma superior es muy fina, la mitad de su grosor.
+>>>
+<<< real 2
+{{f8_fills}} | Solo rellenos
+{{f8_traps}} | Solo trazos trampa
+===
+Las dos partes reales del SVG del ajolote. En total son {{trap_paths}} trazados de trampa, de anchos {{trap_widths}} px. Se escriben como polilíneas simplificadas a {{trap_tol}} px, porque nadie ve su forma. Aun así, un SVG <code>stacked</code> pesa bastante más que su <code>cutout</code>. Cada trazo lleva además <code>data-shapes</code>, con la forma dueña de cada pared, para que una herramienta de recolorear no tenga que deducirla de la geometría.
+>>>
+<h3>Apilado o recortado</h3>
+<p><code>stacked</code> escribe rellenos y trampas, y ordena las capas por grosor: lo grueso abajo, lo fino arriba, para que las paredes de lo fino queden exactas. <code>cutout</code> solo escribe rellenos, y ordena por área. Sirve para plotter y serigrafía, y se le notarán costuras en pantalla.</p>
+
+<h2 id="c9">9. Resultados en la batería</h2>
+<p>Arrastra el deslizador para comparar la fuente con unpixel. Cambia la imagen o el zoom.</p>
+<figure class="fig" id="f9-1">{{d_viewer}}<figcaption class="cap"><b>Figura 9.1</b> <span class="tag real">Ejecución real</span> Cada imagen es un SVG real dibujado con <code>rsvg-convert</code> sobre blanco, con 1100 px como máximo. Los SVG también están enlazados, para ampliarlos sin límite en el navegador.</figcaption></figure>
+<script type="application/json" id="viewer-data">{{viewer_json}}</script>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th>Colores</th><th>Trazados</th><th>Nodos</th><th>Nodos /100 px</th><th>Giros &gt; 30° /1000 px</th><th>KB</th><th>ΔE medio</th><th>ΔE p95</th></tr></thead><tbody>{{t9_all}}</tbody></table></div>
+===
+<code>stacked</code>, medido con <code>tools/engine/measure.py</code> en el SVG escrito. Los giros en cruces no cuentan. El ΔE medio no dice nada de los defectos del capítulo 10.
+>>>
+<h3>Tiempo y memoria</h3>
+<<< data
+{{c9_time}}
+===
+Segundos por etapa, una sola pasada por imagen en una máquina no reservada. Pasa el puntero sobre un tramo para ver el valor. Las etapas van agrupadas; la tabla de abajo las tiene todas.
+>>>
+<<< data
+<div class="g g2 st"><div class="tw"><table><thead><tr><th>Imagen</th><th>Segundos</th><th>Pico MB</th></tr></thead><tbody>{{t9_time}}</tbody></table></div><div class="tw"><table><thead><tr><th>Etapa</th><th>Segundos de media</th></tr></thead><tbody>{{t9_stages}}</tbody></table></div></div>
+===
+Solo el motor, sin informe ni vista previa, cada imagen en su proceso. La memoria es el pico del proceso.
+>>>
+
+<h2 id="c10">10. Lo aún imperfecto o sin verificar</h2>
+<p>Esto es lo que sigue mal o sin probar en unpixel, comprobado en este commit.</p>
+<h3>Giros bruscos, colores y tamaño</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th>Giros &gt; 30° /1000 px</th><th>Colores</th><th><code>stacked</code> KB</th><th><code>cutout</code> KB</th></tr></thead><tbody>{{t10_costs}}</tbody></table></div>
+===
+De las mismas medidas que el capítulo 9.
+>>>
+<p><b>Giros bruscos.</b> Las paredes que se encuentran pueden girar de golpe, y parte de esos giros son esquinas de verdad. Pero algunos son puntas donde la fuente es redonda, y distinguirlos pide ojo, no fórmula. <code>leaves</code> es la que más tiene.</p>
+<p><b>Más colores.</b> Pasar de 16 colores necesita un motivo, y aun así varias imágenes lo hacen: {{over16}}. Nada en el código busca menos colores una vez cubierto lo que se ve.</p>
+<p><b>Tamaño.</b> Las trampas pesan: la misma imagen en <code>cutout</code> es de {{trap_share_lo}} a {{trap_share_hi}} más pequeña que en <code>stacked</code>.</p>
+<h3>Defectos a la vista</h3>
+<<< real 2 pix
+{{f10_lathe_src}} | Fuente
+{{f10_lathe_out}} | unpixel
+===
+<code>watchmaker</code>, el torno. Sigue bien los grises del metal, pero añade motas verde azuladas y reflejos blancos exagerados en el husillo y la polea.
+>>>
+<<< real 2 pix
+{{f10_lantern_src}} | Fuente
+{{f10_lantern_out}} | unpixel
+===
+<code>diver</code>, el farol. El halo se convierte en bandas suaves, pero el interior es más apagado que el de la fuente, y el cuerpo más claro y manchado.
+>>>
+<<< real 2 pix
+{{f10_sunset_src}} | Fuente
+{{f10_sunset_out}} | unpixel
+===
+<code>sunset</code>. <b>De las antenas quedan poco más que las bolas</b>, y el degradado de la cara se convierte en bandas muy visibles.
+>>>
+<<< real 2 pix
+{{f10_mouth2_src}} | Fuente
+{{f10_mouth2_out}} | unpixel
+{{f10_mouth_src}} | Fuente
+{{f10_mouth_out}} | unpixel
+===
+La boca: coral en la fuente, rosa en la salida. En <code>float</code> (arriba) hay además una mota naranja.
+>>>
+<<< real 2 pix
+{{f10_ghost_src}} | Fuente
+{{f10_ghost_out}} | unpixel
+===
+<code>ghost</code>. El dibujo se lee, pero su contorno pálido es irregular de cerca, ligeramente anguloso.
+>>>
+<h3>Pegatinas y huecos</h3>
+<<< real 2
+{{f10_ground_leaves}} | <code>leaves</code>
+{{f10_ground_float}} | <code>float</code>
+===
+Sobre un fondo de color, los límites se aprecian. <code>leaves</code> pierde la pegatina. <code>float</code> deja una pegatina blanca entera con los huecos de la valla opacos. <code>battery/README.md</code> dice que esos huecos deben volverse transparentes: unpixel no lo hace sin <code>--also-transparent</code>, aunque la línea de órdenes avisa.
+>>>
+<h3><code>--also-transparent</code> y las marcas finas</h3>
+<p>La ayuda de la línea de órdenes dice que las marcas finas que se funden con el color elegido se van con él. En unpixel, no: <code>adapter.py</code> solo quita clases a ΔE ≤ 8 de ese color. Esto sale de leer el código; la figura de abajo muestra otra consecuencia, no ese caso aislado.</p>
+<<< real 2 pix
+{{f10_also_src}} | Fuente
+{{f10_also}} | <code>--also-transparent {{also_color}}</code>
+===
+El color que sugiere el propio aviso de la línea de órdenes, sobre azul. El blanco de la pegatina y el <b>brillo blanco del casco</b> son la misma clase, y el casco queda agujereado.
+>>>
+<h3>Agujeros de 1 o 2 píxeles</h3>
+<p>La línea de órdenes cuenta <code>holes_in_artwork</code> con su propio rasterizador, y marca algunos. Se sabe de dos: <code>float</code> cerca de (347, 200) y <code>leaves</code> cerca de (816, 454). Se han comprobado con otros dos renderizadores.</p>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th>x, y</th><th><code>holes_in_artwork</code></th><th>Alfa, <code>unpixel.render</code></th><th>Alfa, <code>rsvg-convert</code></th><th>Alfa, Chromium</th></tr></thead><tbody>{{t10_pin}}</tbody></table></div>
+===
+El alfa en ese píxel exacto, a tamaño real. 0 es transparente del todo; 255, opaco.
+>>>
+<<< real 3 pix
+{{f10_pin_float_src}} | Fuente
+{{f10_pin_float_inner}} | <code>unpixel.render</code>
+{{f10_pin_float_rsvg}} | <code>rsvg-convert</code>
+{{f10_pin_leaves_src}} | Fuente
+{{f10_pin_leaves_inner}} | <code>unpixel.render</code>
+{{f10_pin_leaves_rsvg}} | <code>rsvg-convert</code>
+===
+Sobre magenta. El rasterizador propio, sin antialiasing y sin leer los trazos trampa, deja un píxel magenta en un escalón diagonal. <code>rsvg-convert</code> y Chromium no lo muestran en esos puntos. Así que estos dos no son agujeros que vea un usuario en esos renderizadores. <b>La causa dentro del rasterizador no está establecida</b>, y otros puntos y tamaños no se han comprobado a este nivel.
+>>>
+<h3>Puntos translúcidos en el navegador</h3>
+<<< data
+<div class="tw"><table><thead><tr><th>Imagen</th><th><code>stacked</code></th><th><code>cutout</code></th></tr></thead><tbody>{{t10_browser}}</tbody></table></div>
+===
+Píxeles con alfa &lt; 200 dentro de la obra a 1× / 3× / 0,25×, en {{browser_version}}, commit {{browser_commit}}. Es una pasada aparte del generador (<code>tools/book/browser_counts.py</code>). <code>stacked</code> deja pocos a 1×, y más a 3×. Parte de lo contado son entrantes reales del fondo, no huecos: no están separados.
+>>>
+<h3>Imágenes muy grandes</h3>
+<p>Con <code>leaves</code> ampliada a 24 megapíxeles, unpixel tardó {{big_s}} s con un pico de {{big_mb}} MB, varias veces la memoria de las imágenes de la batería, aunque sobre 12 megapíxeles trabaja con la imagen reducida. El detalle más fino que esa rejilla reducida se pierde.</p>
+<h3>Sin probar</h3>
+<ul>
+<li><b>Illustrator, Inkscape, RIP de impresión:</b> nada. Solo <code>rsvg-convert</code> y Chromium.</li>
+<li><b>Un plotter o una impresora reales:</b> nada. Todo lo dicho de ellos en este libro es razonamiento sobre los trazados.</li>
+<li>Los trazos trampa son trazos. En un editor con «escalar trazos» desactivado, cambiarían de ancho. Un cortador debe usar <code>cutout</code>.</li>
+<li>Las medidas son de una sola pasada, en una máquina que no estaba reservada.</li>
+<li>No se han vuelto a mirar en este commit: los puentes oscuros sobre correas finas del ajolote, las rayas rotas del catalejo ni las manchas de la cobertura del donut. Quizá sigan ahí.</li>
+</ul>
+
+<h2 id="c11">Glosario</h2>
+<dl class="gl">
+<dt>Antialiasing</dt><dd>Píxeles de borde que mezclan los dos colores vecinos para que el borde parezca suave.</dd>
+<dt>Arco</dt><dd>Tramo de pared entre dos cruces, o una vuelta cerrada.</dd>
+<dt>Bézier cúbica</dt><dd>Curva definida por dos nodos y dos manejadores.</dd>
+<dt>CIE76, ΔE</dt><dd>Distancia en línea recta entre dos colores en Lab. Es simple e imperfecta.</dd>
+<dt>Clase</dt><dd>Etiqueta de color de un píxel: el índice de la paleta o el fondo.</dd>
+<dt>Croma</dt><dd>La intensidad de un color: lo lejos que está del gris. En Lab, <code>hypot(a, b)</code>.</dd>
+<dt>Cruce</dt><dd>Punto donde se encuentran tres o más paredes, o donde una pared sale de la imagen.</dd>
+<dt>Grieta</dt><dd>El lado compartido entre dos píxeles vecinos de distinta clase.</dd>
+<dt>Línea fina (<i>hairline</i>)</dt><dd>Línea tenue que un renderizador deja entre dos formas contiguas, por su antialiasing.</dd>
+<dt>Máscara</dt><dd>Imagen de sí o no sobre cada píxel.</dd>
+<dt>Mapa plano</dt><dd>Representación de las regiones como paredes y cruces compartidos.</dd>
+<dt>Nodo</dt><dd>Punto por donde pasa una curva, en el que termina un segmento y empieza otro.</dd>
+<dt>Punto más lejano</dt><dd>Forma de elegir colores: siempre el más alejado de los ya elegidos.</dd>
+<dt>Sólido</dt><dd>Píxel que no es transición ni fondo. Los únicos que votan en la paleta.</dd>
+<dt>Stacked, cutout</dt><dd>Capas con trazos trampa para que no se vean costuras, frente a capas que solo se tocan.</dd>
+<dt>Transición</dt><dd>Píxel que se explica como mezcla de los que tiene a sus lados.</dd>
+<dt>Trazo trampa (<i>trap</i>)</dt><dd>Trazo del color inferior sobre una pared, para que el borde del color superior no deje ver el fondo.</dd>
+</dl>
+<footer>Generado por <code>tools/book/make.py</code> sobre el commit <code>{{commit}}</code>, con <code>uv run --no-project --with numpy --with pillow --with scipy --with potracer python tools/book/make.py</code>. Las medidas en crudo están en <a href="../measurements.json">measurements.json</a>. Títulos en Pixelify Sans, bajo <a href="../OFL-PixelifySans.txt">SIL Open Font License</a>, incrustada en la página.</footer>

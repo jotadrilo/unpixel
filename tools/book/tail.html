@@ -11,25 +11,22 @@
   });
   var box=document.getElementById('viewer');if(!box)return;
   var DATA=JSON.parse(document.getElementById('viewer-data').textContent);
-  var NAMES={src:'Original',classic:'Clásico',new:'Nuevo'};
-  var state={image:'principito',left:'classic',right:'new',cut:50,zoom:1};
+  var state={image:'principito',cut:50,zoom:1};
   var base=box.querySelector('.base'),top_=box.querySelector('.over img'),over=box.querySelector('.over'),rule=box.querySelector('.rule');
-  var ll=box.querySelector('.lab.l'),lr=box.querySelector('.lab.r'),inner=box.querySelector('.inner'),range=box.querySelector('input[type=range]');
-  var links=box.querySelector('.links');
+  var inner=box.querySelector('.inner'),range=box.querySelector('input[type=range]'),links=box.querySelector('.links');
   function press(group,v){box.querySelectorAll('[data-'+group+']').forEach(function(b){b.setAttribute('aria-pressed',b.dataset[group]===v?'true':'false');});}
   function draw(){
     var d=DATA[state.image];
-    base.src=d[state.right==='src'?'src':state.right];top_.src=d[state.left==='src'?'src':state.left];
-    base.alt=NAMES[state.right]+', '+state.image;top_.alt=NAMES[state.left]+', '+state.image;
+    base.src=d.out;top_.src=d.src;
+    base.alt='unpixel, '+state.image;top_.alt=state.image;
     inner.style.width=(100*state.zoom)+'%';
     over.style.clipPath='inset(0 '+(100-state.cut)+'% 0 0)';rule.style.left=state.cut+'%';
-    ll.textContent=NAMES[state.left];lr.textContent=NAMES[state.right];
-    links.innerHTML='SVG reales: <a href="'+d.svg_c+'">clásico</a> · <a href="'+d.svg_n+'">nuevo</a>';
-    press('image',state.image);press('left',state.left);press('right',state.right);press('zoom',String(state.zoom));
+    links.innerHTML='SVG: <a href="'+d.svg+'">'+state.image+'.svg</a>';
+    press('image',state.image);press('zoom',String(state.zoom));
   }
   box.addEventListener('click',function(e){
     var b=e.target.closest('button');if(!b)return;var s=b.dataset;
-    if(s.image)state.image=s.image;if(s.left)state.left=s.left;if(s.right)state.right=s.right;if(s.zoom)state.zoom=+s.zoom;
+    if(s.image)state.image=s.image;if(s.zoom)state.zoom=+s.zoom;
     draw();
   });
   range.addEventListener('input',function(){state.cut=+range.value;draw();});

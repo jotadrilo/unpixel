@@ -156,3 +156,35 @@ def bezier_path(seg, z: float, box) -> str:
     x0, y0 = box[0], box[1]
     p = (np.asarray(seg, dtype=np.float64) - [x0, y0]) * z
     return f"M{p[0][0]:.1f} {p[0][1]:.1f}C{p[1][0]:.1f} {p[1][1]:.1f} {p[2][0]:.1f} {p[2][1]:.1f} {p[3][0]:.1f} {p[3][1]:.1f}"
+
+
+NUM_OPEN, NUM_CLOSE = "⁣", "⁣"
+TR_OPEN, TR_MID, TR_CLOSE = "⁤", "⁥", "⁦"
+
+
+def num(value, digits: int = 0) -> str:
+    """A number, marked so that each language's page writes it in its own way."""
+    return f"{NUM_OPEN}{float(value):.{digits}f}{NUM_CLOSE}"
+
+
+def pct(value, digits: int = 1) -> str:
+    return num(value, digits) + tr("%", " %")
+
+
+def tr(en: str, es: str) -> str:
+    """Text in both languages, resolved when the page for one of them is written."""
+    return f"{TR_OPEN}{en}{TR_MID}{es}{TR_CLOSE}"
+
+
+def localize(text: str, lang: str) -> str:
+    """Resolve the marks of `num` and `tr` for one language."""
+    pick = 1 if lang == "en" else 2
+    text = re.sub(f"{TR_OPEN}(.*?){TR_MID}(.*?){TR_CLOSE}", lambda m: m.group(pick), text, flags=re.S)
+
+    def write(m):
+        raw = m.group(1)
+        digits = len(raw.split(".")[1]) if "." in raw else 0
+        out = f"{float(raw):,.{digits}f}"
+        return out if lang == "en" else out.replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+    return re.sub(f"{NUM_OPEN}(-?[0-9.]+){NUM_CLOSE}", write, text)

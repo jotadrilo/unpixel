@@ -7,53 +7,7 @@
 },
 "rows": [
 {
-"file": "axolotl-classic-cutout",
-"scales": {
-"1": {
-"pixels": 26924,
-"under_200": 9037,
-"min_alpha": 0,
-"inside": 195330
-},
-"3": {
-"pixels": 82679,
-"under_200": 28815,
-"min_alpha": 0,
-"inside": 1842747
-},
-"0.25": {
-"pixels": 4657,
-"under_200": 1896,
-"min_alpha": 0,
-"inside": 10567
-}
-}
-},
-{
-"file": "axolotl-classic-stacked",
-"scales": {
-"1": {
-"pixels": 85,
-"under_200": 69,
-"min_alpha": 0,
-"inside": 195331
-},
-"3": {
-"pixels": 1,
-"under_200": 0,
-"min_alpha": 247,
-"inside": 1842748
-},
-"0.25": {
-"pixels": 2051,
-"under_200": 57,
-"min_alpha": 0,
-"inside": 10567
-}
-}
-},
-{
-"file": "axolotl-new-cutout",
+"file": "axolotl-cutout",
 "scales": {
 "1": {
 "pixels": 23461,
@@ -76,7 +30,7 @@
 }
 },
 {
-"file": "axolotl-new-stacked",
+"file": "axolotl-stacked",
 "scales": {
 "1": {
 "pixels": 464,
@@ -99,53 +53,7 @@
 }
 },
 {
-"file": "chef-classic-cutout",
-"scales": {
-"1": {
-"pixels": 10218,
-"under_200": 3661,
-"min_alpha": 0,
-"inside": 176319
-},
-"3": {
-"pixels": 31750,
-"under_200": 11183,
-"min_alpha": 0,
-"inside": 1641153
-},
-"0.25": {
-"pixels": 2059,
-"under_200": 810,
-"min_alpha": 0,
-"inside": 9751
-}
-}
-},
-{
-"file": "chef-classic-stacked",
-"scales": {
-"1": {
-"pixels": 183,
-"under_200": 150,
-"min_alpha": 0,
-"inside": 176379
-},
-"3": {
-"pixels": 11,
-"under_200": 7,
-"min_alpha": 0,
-"inside": 1641182
-},
-"0.25": {
-"pixels": 893,
-"under_200": 93,
-"min_alpha": 0,
-"inside": 9777
-}
-}
-},
-{
-"file": "chef-new-cutout",
+"file": "chef-cutout",
 "scales": {
 "1": {
 "pixels": 9428,
@@ -168,7 +76,7 @@
 }
 },
 {
-"file": "chef-new-stacked",
+"file": "chef-stacked",
 "scales": {
 "1": {
 "pixels": 108,
@@ -191,53 +99,7 @@
 }
 },
 {
-"file": "diver-classic-cutout",
-"scales": {
-"1": {
-"pixels": 30628,
-"under_200": 11495,
-"min_alpha": 0,
-"inside": 195304
-},
-"3": {
-"pixels": 93688,
-"under_200": 33787,
-"min_alpha": 0,
-"inside": 1803262
-},
-"0.25": {
-"pixels": 5452,
-"under_200": 2408,
-"min_alpha": 0,
-"inside": 11200
-}
-}
-},
-{
-"file": "diver-classic-stacked",
-"scales": {
-"1": {
-"pixels": 1267,
-"under_200": 1042,
-"min_alpha": 0,
-"inside": 195264
-},
-"3": {
-"pixels": 250,
-"under_200": 212,
-"min_alpha": 0,
-"inside": 1803262
-},
-"0.25": {
-"pixels": 2287,
-"under_200": 226,
-"min_alpha": 0,
-"inside": 11202
-}
-}
-},
-{
-"file": "diver-new-cutout",
+"file": "diver-cutout",
 "scales": {
 "1": {
 "pixels": 28597,
@@ -260,7 +122,7 @@
 }
 },
 {
-"file": "diver-new-stacked",
+"file": "diver-stacked",
 "scales": {
 "1": {
 "pixels": 1521,
@@ -283,53 +145,7 @@
 }
 },
 {
-"file": "float-classic-cutout",
-"scales": {
-"1": {
-"pixels": 35651,
-"under_200": 12317,
-"min_alpha": 0,
-"inside": 261913
-},
-"3": {
-"pixels": 112364,
-"under_200": 38529,
-"min_alpha": 0,
-"inside": 2474419
-},
-"0.25": {
-"pixels": 5853,
-"under_200": 2512,
-"min_alpha": 0,
-"inside": 14701
-}
-}
-},
-{
-"file": "float-classic-stacked",
-"scales": {
-"1": {
-"pixels": 195,
-"under_200": 165,
-"min_alpha": 0,
-"inside": 261919
-},
-"3": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 2474424
-},
-"0.25": {
-"pixels": 2650,
-"under_200": 186,
-"min_alpha": 0,
-"inside": 14702
-}
-}
-},
-{
-"file": "float-new-cutout",
+"file": "float-cutout",
 "scales": {
 "1": {
 "pixels": 43362,
@@ -352,7 +168,7 @@
 }
 },
 {
-"file": "float-new-stacked",
+"file": "float-stacked",
 "scales": {
 "1": {
 "pixels": 566,
@@ -375,53 +191,7 @@
 }
 },
 {
-"file": "ghost-classic-cutout",
-"scales": {
-"1": {
-"pixels": 347,
-"under_200": 125,
-"min_alpha": 0,
-"inside": 209271
-},
-"3": {
-"pixels": 970,
-"under_200": 319,
-"min_alpha": 22,
-"inside": 1924506
-},
-"0.25": {
-"pixels": 107,
-"under_200": 43,
-"min_alpha": 0,
-"inside": 12035
-}
-}
-},
-{
-"file": "ghost-classic-stacked",
-"scales": {
-"1": {
-"pixels": 41,
-"under_200": 31,
-"min_alpha": 0,
-"inside": 209271
-},
-"3": {
-"pixels": 3,
-"under_200": 2,
-"min_alpha": 22,
-"inside": 1924506
-},
-"0.25": {
-"pixels": 63,
-"under_200": 21,
-"min_alpha": 0,
-"inside": 12035
-}
-}
-},
-{
-"file": "ghost-new-cutout",
+"file": "ghost-cutout",
 "scales": {
 "1": {
 "pixels": 14541,
@@ -444,7 +214,7 @@
 }
 },
 {
-"file": "ghost-new-stacked",
+"file": "ghost-stacked",
 "scales": {
 "1": {
 "pixels": 236,
@@ -467,53 +237,7 @@
 }
 },
 {
-"file": "leaves-classic-cutout",
-"scales": {
-"1": {
-"pixels": 42848,
-"under_200": 14919,
-"min_alpha": 0,
-"inside": 274161
-},
-"3": {
-"pixels": 134375,
-"under_200": 47667,
-"min_alpha": 0,
-"inside": 2511233
-},
-"0.25": {
-"pixels": 8210,
-"under_200": 3400,
-"min_alpha": 0,
-"inside": 16097
-}
-}
-},
-{
-"file": "leaves-classic-stacked",
-"scales": {
-"1": {
-"pixels": 38,
-"under_200": 29,
-"min_alpha": 0,
-"inside": 274159
-},
-"3": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 2511365
-},
-"0.25": {
-"pixels": 3333,
-"under_200": 17,
-"min_alpha": 0,
-"inside": 16097
-}
-}
-},
-{
-"file": "leaves-new-cutout",
+"file": "leaves-cutout",
 "scales": {
 "1": {
 "pixels": 36965,
@@ -536,7 +260,7 @@
 }
 },
 {
-"file": "leaves-new-stacked",
+"file": "leaves-stacked",
 "scales": {
 "1": {
 "pixels": 887,
@@ -559,53 +283,7 @@
 }
 },
 {
-"file": "principito-classic-cutout",
-"scales": {
-"1": {
-"pixels": 39678,
-"under_200": 13844,
-"min_alpha": 34,
-"inside": 1547212
-},
-"3": {
-"pixels": 123456,
-"under_200": 42929,
-"min_alpha": 0,
-"inside": 14074588
-},
-"0.25": {
-"pixels": 8365,
-"under_200": 3221,
-"min_alpha": 149,
-"inside": 92092
-}
-}
-},
-{
-"file": "principito-classic-stacked",
-"scales": {
-"1": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 1547212
-},
-"3": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 14074588
-},
-"0.25": {
-"pixels": 3357,
-"under_200": 0,
-"min_alpha": 218,
-"inside": 92092
-}
-}
-},
-{
-"file": "principito-new-cutout",
+"file": "principito-cutout",
 "scales": {
 "1": {
 "pixels": 33831,
@@ -628,7 +306,7 @@
 }
 },
 {
-"file": "principito-new-stacked",
+"file": "principito-stacked",
 "scales": {
 "1": {
 "pixels": 195,
@@ -651,53 +329,7 @@
 }
 },
 {
-"file": "sunset-classic-cutout",
-"scales": {
-"1": {
-"pixels": 38186,
-"under_200": 13208,
-"min_alpha": 86,
-"inside": 1015798
-},
-"3": {
-"pixels": 121586,
-"under_200": 41970,
-"min_alpha": 0,
-"inside": 9269242
-},
-"0.25": {
-"pixels": 7659,
-"under_200": 3043,
-"min_alpha": 142,
-"inside": 59630
-}
-}
-},
-{
-"file": "sunset-classic-stacked",
-"scales": {
-"1": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 1015798
-},
-"3": {
-"pixels": 0,
-"under_200": 0,
-"min_alpha": 255,
-"inside": 9269242
-},
-"0.25": {
-"pixels": 2810,
-"under_200": 0,
-"min_alpha": 208,
-"inside": 59630
-}
-}
-},
-{
-"file": "sunset-new-cutout",
+"file": "sunset-cutout",
 "scales": {
 "1": {
 "pixels": 33810,
@@ -720,7 +352,7 @@
 }
 },
 {
-"file": "sunset-new-stacked",
+"file": "sunset-stacked",
 "scales": {
 "1": {
 "pixels": 437,
@@ -743,53 +375,7 @@
 }
 },
 {
-"file": "watchmaker-classic-cutout",
-"scales": {
-"1": {
-"pixels": 37208,
-"under_200": 13592,
-"min_alpha": 0,
-"inside": 239111
-},
-"3": {
-"pixels": 116195,
-"under_200": 42296,
-"min_alpha": 0,
-"inside": 2215134
-},
-"0.25": {
-"pixels": 6501,
-"under_200": 2981,
-"min_alpha": 0,
-"inside": 13224
-}
-}
-},
-{
-"file": "watchmaker-classic-stacked",
-"scales": {
-"1": {
-"pixels": 275,
-"under_200": 251,
-"min_alpha": 0,
-"inside": 239119
-},
-"3": {
-"pixels": 9,
-"under_200": 9,
-"min_alpha": 0,
-"inside": 2215220
-},
-"0.25": {
-"pixels": 2342,
-"under_200": 72,
-"min_alpha": 0,
-"inside": 13225
-}
-}
-},
-{
-"file": "watchmaker-new-cutout",
+"file": "watchmaker-cutout",
 "scales": {
 "1": {
 "pixels": 37200,
@@ -812,7 +398,7 @@
 }
 },
 {
-"file": "watchmaker-new-stacked",
+"file": "watchmaker-stacked",
 "scales": {
 "1": {
 "pixels": 2102,
