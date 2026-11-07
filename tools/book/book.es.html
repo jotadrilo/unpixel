@@ -2,7 +2,6 @@
 <p class="lead">Un libro con dibujos para aprender a convertir píxeles en curvas, a través de cómo lo hace unpixel. Todas las figuras marcadas como «Ejecución real» salen de correr el código de este repositorio sobre las imágenes de <code>battery/</code>.</p>
 <details class="toc-m"><summary>Capítulos</summary><nav class="toc" aria-label="Capítulos"><ol>{{toc}}</ol></nav></details>
 <p>Vectorizar es decidir dos cosas: <b>qué colores hay</b> y <b>dónde están las fronteras</b> entre ellos. Este libro sigue cómo toma unpixel cada una, y enseña qué le hace cada paso a una imagen real.</p>
-<div class="note">{{usage_note}}</div>
 <div class="note"><b>Cómo leer las figuras.</b> Cada una lleva una etiqueta. <span class="tag real">Ejecución real</span> es salida del código sobre una imagen. <span class="tag data">Datos reales</span> son medidas en forma de tabla o gráfico. <span class="tag diagram">Diagrama</span> es un dibujo hecho a mano para explicar una idea: no es un resultado. Las ampliaciones van sin suavizado, así que cada cuadrado es un píxel.</div>
 
 <h2 id="c1">1. Ráster y vector</h2>
@@ -83,7 +82,7 @@ Punta del triángulo de <code>synth-hard</code>, en escalera por no tener antial
 >>>
 <h3>Simplificar lo que no es un dibujo</h3>
 <p>¿Qué hacer con una imagen que no es un dibujo, como una foto o puro ruido? Trazar cada grano cuesta muchísimo tiempo y memoria, y deja un archivo que nada puede abrir. Por eso unpixel la simplifica.</p>
-<p>Un resultado con más de {{busy_limit}} regiones se considera demasiado ocupado. <code>segment_new</code> desenfoca la imagen con un sigma de 2 px y vuelve a empezar; si no basta, 4, y luego 8, con el que se queda. Avisa de que lo ha hecho.</p>
+<p>Un resultado con más de {{busy_limit}} regiones se considera demasiado ocupado. <code>segment</code> desenfoca la imagen con un sigma de 2 px y vuelve a empezar; si no basta, 4, y luego 8, con el que se queda. Avisa de que lo ha hecho.</p>
 <<< real 3 pix
 {{f3_noise_src}} | Rampa con ruido (generada, semilla fija)
 {{f3_noise_before}} | Sin reintento: {{noise_before_kb}} KB
@@ -570,8 +569,8 @@ La boca: coral en la fuente, rosa en la salida. En <code>float</code> (arriba) h
 ===
 Sobre un fondo de color, los límites se aprecian. <code>leaves</code> pierde la pegatina. <code>float</code> deja una pegatina blanca entera con los huecos de la valla opacos. <code>battery/README.md</code> dice que esos huecos deben volverse transparentes: unpixel no lo hace sin <code>--also-transparent</code>, aunque la línea de órdenes avisa.
 >>>
-<h3><code>--also-transparent</code> y las marcas finas</h3>
-<p>La ayuda de la línea de órdenes dice que las marcas finas que se funden con el color elegido se van con él. En unpixel, no: <code>adapter.py</code> solo quita clases a ΔE ≤ 8 de ese color. Esto sale de leer el código; la figura de abajo muestra otra consecuencia, no ese caso aislado.</p>
+<h3>Qué se lleva <code>--also-transparent</code></h3>
+<p><code>adapter.py</code> quita clases enteras a ΔE ≤ 8 del color elegido. Una marca fina de otro color se queda, como dice la ayuda de la línea de órdenes. Así que la opción no puede distinguir dos cosas que compartan clase.</p>
 <<< real 2 pix
 {{f10_also_src}} | Fuente
 {{f10_also}} | <code>--also-transparent {{also_color}}</code>

@@ -15,9 +15,8 @@ from ch_b import densest
 from draw import OUT, annotate, bezier_path, classes, crop, faded, groups, num, only_group, only_traps, outlines_only, path_of, pct, save, shrink, svg_crop, tr, without_traps, zoom
 from harness import ROOT, SOURCES, load, pipe_mod, svg_mod
 from measures import shared_segments
+from layers import OVERLAP, per_color_svg
 from unpixel.render import render_svg
-from unpixel.segment import _smooth_partition
-from unpixel.vectorize import OVERLAP, build_svg
 
 MAGENTA = "#ff00aa"
 ARC_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#e34948", "#008300"]
@@ -52,20 +51,10 @@ def dots(points, box, z, color, r=3.5):
     return "".join(f'<circle cx="{(x - box[0]) * z:.1f}" cy="{(y - box[1]) * z:.1f}" r="{r}" fill="{color}" stroke="#fff" stroke-width="1.2"/>' for x, y in points)
 
 
-def independent_layers(result, width, height, mode):
-    """The general technique of tracing each color alone with potrace, on the very class map unpixel produced.
-
-    A demonstration for the geometry chapter: same regions, same colors, only the tracing differs.
-    """
-    labels = np.where(result.labels >= len(result.colors), -1, result.labels).astype(np.int16)
-    smooth = _smooth_partition(labels, sorted(int(c) for c in np.unique(labels)), 2.0)
-    return build_svg(smooth, result.colors, width, height, mode, 30, "layers")[0]
-
-
 def chapter8(ctx):
     d = {}
     rgb = load(SOURCES["axolotl"])
-    t = ctx.new("axolotl")
+    t = ctx.run("axolotl")
     L = t.trace_locals[-1]
     pmap = t.planar[-1]["result"]
     scale = L["scale"]
@@ -110,8 +99,8 @@ def chapter8(ctx):
     d["arcs_total"], d["junctions_total"] = num(len(arcs)), num(len(t.result.info["junctions"]))
 
     # The general technique on the same class map: each color traced alone.
-    ind_cut = independent_layers(t.result, w, h, "cutout")
-    ind_stk = independent_layers(t.result, w, h, "stacked")
+    ind_cut = per_color_svg(t.result, w, h, False)
+    ind_stk = per_color_svg(t.result, w, h, True)
     nw_cut, nw_stk = ctx.svg("axolotl", "cutout"), ctx.svg("axolotl", "stacked")
     d["f8_lines_ind_cut"] = save(svg_crop(outlines_only(ind_cut, 0.18), box, z), "8-lines-ind-cut.png")
     d["f8_lines_ind"] = save(svg_crop(outlines_only(ind_stk, 0.18), box, z), "8-lines-ind.png")
@@ -158,7 +147,7 @@ def chapter8(ctx):
         d[f"f8_{key}"] = save(annotate(faded(svg_crop(nw_stk, b, zs).convert("RGB"), .45), dots(inside(cand, b), b, zs, "#eda100", 7) + dots(inside(good, b), b, zs, "#d6007a", 5)), f"8-{key}.png")
         d[f"corners_{key}_cand"], d[f"corners_{key}_kept"] = num(len(inside(cand, b))), num(len(inside(good, b)))
     d["corners_found"], d["corners_kept"] = num(t.result.info["corners_found"]), num(t.result.info["corners"])
-    tp = ctx.new("principito")
+    tp = ctx.run("principito")
     Lp = tp.trace_locals[-1]
     raw_p, kept_p, chains_p = tp.find_corners[-1]["result"], Lp["corners"], Lp["soft_chains"]
     cand_p = [chains_p[k_][c] for k_ in raw_p for c in raw_p[k_]]
@@ -208,9 +197,9 @@ def chapter8(ctx):
     d["once_axolotl"], d["on_bg_axolotl"] = num(written["once"]), num(int(on_bg))
     rows = []
     for name in SOURCES:
-        res = ctx.new(name).result
+        res = ctx.run(name).result
         rgb_n = load(SOURCES[name])
-        a = shared_segments(independent_layers(res, rgb_n.shape[1], rgb_n.shape[0], "cutout"))
+        a = shared_segments(per_color_svg(res, rgb_n.shape[1], rgb_n.shape[0], False))
         b = ctx.runs[f"{name}/cutout"]["measure"]["shared"]
         rows.append(f"<tr><td><code>{name}</code></td><td>{num(a['segments'])}</td><td>{pct(100 * a['twice_share'])}</td><td>{num(b['segments'])}</td><td>{pct(100 * b['twice_share'])}</td><td>{num(b['more'])}</td></tr>")
     d["t8_shared"] = "".join(rows)
@@ -306,7 +295,7 @@ def pair_box(ctx, name, box, key, z):
 def run_cli(src, out, *args):
     """The real command line, in its own process, as a user would run it."""
     env = {"PYTHONPATH": str(ROOT / "src"), "PATH": os.environ["PATH"]}
-    return subprocess.run([sys.executable, "-m", "unpixel", str(src), "-o", str(out), "--force", "--no-report", "--json", "--engine", "new", *args],
+    return subprocess.run([sys.executable, "-m", "unpixel", str(src), "-o", str(out), "--force", "--no-report", "--json", *args],
                           capture_output=True, text=True, env=env, timeout=900)
 
 

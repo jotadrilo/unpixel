@@ -34,7 +34,7 @@ def densest(mask, size):
 def chapter5(ctx):
     d = {}
     rgb = load(SOURCES["float"])
-    tn = ctx.new("float")
+    tn = ctx.run("float")
     with locals_of(lab_mod.find_background) as seen:
         bg = lab_mod.find_background(tn.lab)
     L = seen["find_background"][0]
@@ -53,7 +53,7 @@ def chapter5(ctx):
     d["f5_near_z"] = save(zoom(over(crop(rgb, box), crop(L["near"], box), FLOOD, 0.8), 4), "5-near-zoom.png")
     d["f5_final_z"] = save(zoom(crop(base, box), 4).astype(np.uint8), "5-final-zoom.png")
     d["f5_src_z"] = save(zoom(crop(rgb, box), 4), "5-src-zoom.png")
-    d["note_principito"] = ctx.new("principito").background.note
+    d["note_principito"] = ctx.run("principito").background.note
 
     gills = (500, 150, 620, 270)
     d["f5_gill_src"] = save(zoom(crop(rgb, gills), 4), "5-gill-src.png")
@@ -64,7 +64,7 @@ def chapter5(ctx):
     d["f5_all_solid"] = save(shrink(over(rgb, solid, SOLID, 0.85, 0.25), W), "5-all-solid.png")
     d["tr_share"], d["solid_share"] = pct(100 * tn.transition.mean()), pct(100 * solid.mean())
 
-    ax = ctx.new("axolotl")
+    ax = ctx.run("axolotl")
     axrgb = load(SOURCES["axolotl"])
     x, y0, y1 = 632, 225, 285
     d["c5_row"] = row_chart(ax.lab[y0:y1, x], ax.transition[y0:y1, x])
@@ -74,7 +74,7 @@ def chapter5(ctx):
     d["f5_wh_src"] = save(zoom(crop(axrgb, whisk), 6), "5-wh-src.png")
     d["f5_wh_tr"] = save(zoom(over(crop(axrgb, whisk), crop(ax.transition, whisk), MASK), 6), "5-wh-tr.png")
 
-    dv = ctx.new("diver")
+    dv = ctx.run("diver")
     dvrgb = load(SOURCES["diver"])
     hl = lab_mod.highlight_mask(dv.lab, ~dv.transition & ~dv.background.mask)
     helmet = densest(hl, 160)
@@ -137,7 +137,7 @@ def chapter6(ctx):
     d["f6_wrong9"] = save(zoom(over(crop(rgb, gills), crop(wrong9, gills), (20, 20, 20), 1.0, 0.5), 4), "6-wrong9.png")
 
     # What one wrong pixel can see: reach 3 against reach 9, from the labels `assign` itself produced.
-    t3 = ctx.new_window("float", 3)
+    t3 = ctx.run_window("float", 3)
     a = t3.assigns[-1]
     transition, label3, palette = a["args"][1], a["result"], a["args"][3]
     colors = lab_rgb(palette)
@@ -173,9 +173,9 @@ def chapter6(ctx):
     d["f6_window_out"] = save(annotate(zoom(classes(crop(label3, box), colors), z), marks), "6-window-out.png")
 
     # No limit at all, on the same image, before any cleaning.
-    ax = ctx.new("axolotl")
+    ax = ctx.run("axolotl")
     axrgb = load(SOURCES["axolotl"])
-    lim = ctx.new_window("axolotl", 100000)
+    lim = ctx.run_window("axolotl", 100000)
     rgb_a = classes(ax.assigns[-1]["result"], lab_rgb(ax.assigns[-1]["args"][3]))
     rgb_b = classes(lim.assigns[-1]["result"], lab_rgb(lim.assigns[-1]["args"][3]))
     diff = np.abs(rgb_a.astype(int) - rgb_b.astype(int)).sum(-1) > 30
@@ -247,7 +247,7 @@ def chapter7(ctx):
         d[f"{prefix}_after"] = save(zoom(classes(crop(after, box), colors, background), z), f"7-{prefix}-after.png")
         d[f"{prefix}_diff"] = save(zoom(over(a, crop(before != after, box), MASK, 1.0, 0.45), z), f"7-{prefix}-diff.png")
 
-    t = ctx.new("float")
+    t = ctx.run("float")
     call = t.fringes[-2]
     before = call["args"][0]
     after, bands = call["result"]
@@ -260,14 +260,14 @@ def chapter7(ctx):
     d["s7_pass2"] = swatches([(to_hex(c), "") for c in t.palettes[1]["result"].rgb])
     d["pass1_n"], d["pass2_n"] = num(len(t.palettes[0]["result"].rgb)), num(len(t.palettes[1]["result"].rgb))
 
-    t = ctx.new("diver")
+    t = ctx.run("diver")
     call = t.specks[0]
     before, after = call["args"][0], call["result"]
     colors = lab_rgb(call["args"][1][:-1])
     box = densest(before != after, 140)
     trio("sp", before, after, colors, box, 3)
     d["sp_src"] = save(zoom(crop(zoom(load(SOURCES["diver"]), 2), box), 3), "7-sp-src.png")
-    t = ctx.new("principito")
+    t = ctx.run("principito")
     call = t.specks[0]
     before, after = call["args"][0], call["result"]
     colors = lab_rgb(call["args"][1][:-1])
@@ -275,7 +275,7 @@ def chapter7(ctx):
     trio("sq", before, after, colors, box, 3)
     d["sq_src"] = save(zoom(crop(zoom(load(SOURCES["principito"]), 2), box), 3), "7-sq-src.png")
 
-    t = ctx.new("watchmaker")
+    t = ctx.run("watchmaker")
     call = t.speckle[0]
     before, (after, n) = call["args"][0], call["result"]
     colors = lab_rgb(call["args"][1][:-1])
@@ -283,7 +283,7 @@ def chapter7(ctx):
     trio("cr", before, after, colors, box, 3)
     d["cr_src"] = save(zoom(crop(zoom(load(SOURCES["watchmaker"]), 2), box), 3), "7-cr-src.png")
     d["cr_islands"] = num(n)
-    t = ctx.new("float")
+    t = ctx.run("float")
     call = t.speckle[0]
     before, (after, nf) = call["args"][0], call["result"]
     colors = lab_rgb(call["args"][1][:-1])
@@ -291,10 +291,10 @@ def chapter7(ctx):
     trio("cf", before, after, colors, box, 3)
     d["cf_src"] = save(zoom(crop(zoom(load(SOURCES["float"]), 2), box), 3), "7-cf-src.png")
     d["cf_islands"] = num(nf)
-    per = {name: ctx.new(name).result.info.get("speckle_islands", 0) for name in SOURCES}
+    per = {name: ctx.run(name).result.info.get("speckle_islands", 0) for name in SOURCES}
     d["cr_per"] = ", ".join(f"<code>{k}</code> {num(v)}" for k, v in per.items())
 
-    t = ctx.new("leaves")
+    t = ctx.run("leaves")
     call = t.floating[0]
     before, (after, n) = call["args"][0], call["result"]
     colors = lab_rgb(call["args"][1][:-1])
@@ -307,7 +307,7 @@ def chapter7(ctx):
     d["fl_z_src"] = save(zoom(crop(zoom(load(SOURCES["leaves"]), 2), box), 2), "7-fl-z-src.png")
     d["fl_count"] = num(n)
 
-    t = ctx.new("axolotl")
+    t = ctx.run("axolotl")
     a = t.assigns[-1]["args"]
     r0 = lab_mod.assign(a[0], a[1], a[2], a[3], rounds=0)
     r3 = t.assigns[-1]["result"]
@@ -318,7 +318,7 @@ def chapter7(ctx):
     d["v_b"] = save(zoom(classes(crop(r3, box), colors), 6), "7-v-b.png")
     d["v_changed"] = num(int(changed.sum()))
 
-    t = ctx.new("principito")
+    t = ctx.run("principito")
     call = t.refine[-1]
     fine = call["result"][0]
     colors = lab_rgb(call["args"][2])

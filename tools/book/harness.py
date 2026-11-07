@@ -111,7 +111,7 @@ def locals_of(*codes):
 
 
 @dataclass
-class NewTrace:
+class Trace:
     rgb: np.ndarray
     result: object = None
     lab_raw: np.ndarray | None = None
@@ -136,9 +136,9 @@ class NewTrace:
     write_svg: list = field(default_factory=list)
 
 
-def trace_new(rgb: np.ndarray, title: str = "image", variant: str = "stacked", window: int | None = None) -> NewTrace:
+def trace_run(rgb: np.ndarray, title: str = "image", variant: str = "stacked", window: int | None = None) -> Trace:
     """The real `pipeline.run`, with every stage's input and output kept."""
-    t = NewTrace(rgb)
+    t = Trace(rgb)
     rec: dict[str, list] = {k: [] for k in "perceptual bilateral flatten transition find_background guard".split()}
     triples = [
         (lab_mod, "perceptual", recorder(rec["perceptual"])),

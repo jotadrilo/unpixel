@@ -3,7 +3,8 @@
 
     uv run --no-project --with numpy --with pillow --with scipy --with potracer python tools/book/make.py
 
-Every processing image and number comes from running unpixel here. Takes about fifteen minutes. Set BOOK_CACHE to a
+Every processing image and number comes from running unpixel here; potrace is only for chapter 8's demonstration of
+another technique. Takes about fifteen minutes. Set BOOK_CACHE to a
 directory to keep the runs between builds while writing; left unset, everything is recomputed. Pass chapter function
 names to redo only those. The numbers from Chromium are the exception: see browser_counts.py.
 """
@@ -32,7 +33,7 @@ import ch_c  # noqa: E402
 import diagrams  # noqa: E402
 import measures  # noqa: E402
 from draw import OUT, localize  # noqa: E402
-from harness import ROOT, SOURCES, lab_mod, load, trace_new  # noqa: E402
+from harness import ROOT, SOURCES, lab_mod, load, trace_run  # noqa: E402
 
 BOOK = OUT.parent
 LANGS = {
@@ -61,20 +62,20 @@ class Context:
 
     def __init__(self, work: Path, runs: dict):
         self.work, self.runs = work, runs
-        self._new: dict = {}
+        self._traces: dict = {}
 
     def svg(self, name, layers):
         return (self.work / "runs" / f"{name}-{layers}.svg").read_text(encoding="utf-8")
 
-    def new(self, name):
-        if name not in self._new:
-            if len(self._new) >= 3:
-                self._new.pop(next(iter(self._new)))
-            self._new[name] = trace_new(load(SOURCES[name]), name)
-        return self._new[name]
+    def run(self, name):
+        if name not in self._traces:
+            if len(self._traces) >= 3:
+                self._traces.pop(next(iter(self._traces)))
+            self._traces[name] = trace_run(load(SOURCES[name]), name)
+        return self._traces[name]
 
-    def new_window(self, name, window):
-        return trace_new(load(SOURCES[name]), name, window=window)
+    def run_window(self, name, window):
+        return trace_run(load(SOURCES[name]), name, window=window)
 
 
 FIG_OPEN = re.compile(r"^<<<\s+(real|data|diagram)(?:\s+(\S+))?(?:\s+(pix))?\s*$")

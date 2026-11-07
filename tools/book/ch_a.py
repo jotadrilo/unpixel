@@ -70,7 +70,7 @@ def chapter2(ctx):
     d = {}
     box = (560, 130, 720, 250)
     rgb = load(SOURCES["axolotl"])
-    tn = ctx.new("axolotl")
+    tn = ctx.run("axolotl")
     last = tn.assigns[-1]["result"]
     pal = tn.palettes[-1]["result"]
     b2 = scaled(box, 2)
@@ -156,7 +156,7 @@ def chapter3(ctx):
     d["noise_before_regions"] = num(lab_mod._regions(r.labels, len(r.colors) + 1)[1])
 
     def cli(image, out_svg):
-        done = subprocess.run([sys.executable, str(HERE / "run_cli_measured.py"), str(image), str(out_svg), "--engine", "new"],
+        done = subprocess.run([sys.executable, str(HERE / "run_cli_measured.py"), str(image), str(out_svg)],
                               capture_output=True, text=True, timeout=1800)
         if done.returncode:
             raise RuntimeError(done.stderr[-1500:])
@@ -170,9 +170,9 @@ def chapter3(ctx):
     d["noise_after_mb"] = num(after["peak_rss_mb"])
     d["noise_warning"] = next((w for w in after["warnings"] if "busy" in w), "—")
     tries: list = []
-    with patches((pipe_mod, "clean_labels", recorder(tries))), locals_of(adapter.segment_new) as seen:
-        adapter.segment_new(noisy, Options())
-    d["noise_blur"] = num(seen["segment_new"][0]["blur"])
+    with patches((pipe_mod, "clean_labels", recorder(tries))), locals_of(adapter.segment) as seen:
+        adapter.segment(noisy, Options())
+    d["noise_blur"] = num(seen["segment"][0]["blur"])
     d["noise_attempts"] = " → ".join(num(lab_mod._regions(c["result"][0], len(c["result"][4]))[1]) for c in tries)
     d["busy_limit"] = num(adapter.BUSY_REGIONS)
     pure = np.random.default_rng(4).integers(0, 256, (1224, 1224, 3), dtype=np.uint8)
@@ -229,7 +229,7 @@ def chapter4(ctx):
 
     # The same run with the warp turned off: both functions become the identity.
     rgb = load(SOURCES["axolotl"])
-    with_warp = ctx.new("axolotl").result
+    with_warp = ctx.run("axolotl").result
     ident = lambda fn: (lambda lab: np.asarray(lab, dtype=np.float32))  # noqa: E731
     with patches((lab_mod, "perceptual", ident), (lab_mod, "from_perceptual", ident)):
         no_warp = pipe_mod.run(rgb, "stacked", "axolotl")
@@ -252,7 +252,7 @@ def chapter4(ctx):
     d["warp_violets"], d["nowarp_violets"] = violets(with_warp.colors), violets(no_warp.colors)
     rows, most = [], 0
     for name in SOURCES:
-        base = with_warp if name == "axolotl" else ctx.new(name).result
+        base = with_warp if name == "axolotl" else ctx.run(name).result
         if name == "axolotl":
             off = no_warp
         else:
@@ -270,7 +270,7 @@ def chapter4(ctx):
     rgb = load(SOURCES["principito"])
     centers, km = real_kmeans(rgb)
     km_img = lab_mod.lab_to_srgb(centers)[km].astype(np.uint8)
-    tn = ctx.new("principito")
+    tn = ctx.run("principito")
     svg_n = ctx.svg("principito", "stacked")
     spots = {"hand": (400, 330, 560, 460), "glass": (740, 560, 860, 760), "shine": (960, 620, 1200, 860)}
     plain = srgb_to_lab(rgb)
@@ -346,7 +346,7 @@ def chapter4(ctx):
     d["nohl_lost_p"] = ", ".join(lost(tn.result.colors, no_hl.colors))
     d["nosat_lost_p"] = ", ".join(lost(tn.result.colors, no_sat.colors))
     dv_rgb = load(SOURCES["diver"])
-    dv = ctx.new("diver").result
+    dv = ctx.run("diver").result
     with patched(lab_mod, "highlight_mask", off_hl):
         dv_off = pipe_mod.run(dv_rgb, "stacked", "diver")
     d["nohl_lost_d"] = ", ".join(lost(dv.colors, dv_off.colors))

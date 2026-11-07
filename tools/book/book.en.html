@@ -2,7 +2,6 @@
 <p class="lead">A picture book on turning pixels into curves, taught through how unpixel does it. Every figure marked “Real run” comes from running this repository's code on the images in <code>battery/</code>.</p>
 <details class="toc-m"><summary>Chapters</summary><nav class="toc" aria-label="Chapters"><ol>{{toc}}</ol></nav></details>
 <p>Vectorizing comes down to two decisions: <b>which colors exist</b> and <b>where the borders between them run</b>. This book follows how unpixel makes each one, and shows what each step does to a real image.</p>
-<div class="note">{{usage_note}}</div>
 <div class="note"><b>How to read the figures.</b> Each one has a label. <span class="tag real">Real run</span> is output from code on an image. <span class="tag data">Real data</span> is measurements drawn as a table or chart. <span class="tag diagram">Diagram</span> is a drawing made by hand to explain an idea, and is not a result. Close-ups are magnified with no smoothing, so each square is one pixel.</div>
 
 <h2 id="c1">1. Raster and vector</h2>
@@ -83,7 +82,7 @@ The tip of the triangle in <code>synth-hard</code>, a staircase because it has n
 >>>
 <h3>Simplifying what is not a drawing</h3>
 <p>What should happen to an image that is not a drawing, such as a photo or plain noise? Tracing every grain costs enormous time and memory, and produces a file nothing can open. So unpixel simplifies it.</p>
-<p>A result with more than {{busy_limit}} regions counts as too busy. <code>segment_new</code> blurs the image with a sigma of 2 px and starts again; if that is not enough, 4, then 8, and it stays with that. It warns that it did so.</p>
+<p>A result with more than {{busy_limit}} regions counts as too busy. <code>segment</code> blurs the image with a sigma of 2 px and starts again; if that is not enough, 4, then 8, and it stays with that. It warns that it did so.</p>
 <<< real 3 pix
 {{f3_noise_src}} | Noisy ramp (generated, fixed seed)
 {{f3_noise_before}} | No retry: {{noise_before_kb}} KB
@@ -570,8 +569,8 @@ The mouth is coral in the source and comes out pink. In <code>float</code> (abov
 ===
 On a colored ground, the limits show. <code>leaves</code> loses its sticker. <code>float</code> keeps a whole white sticker with the fence's holes opaque. <code>battery/README.md</code> says those holes should become transparent; unpixel does not do that without <code>--also-transparent</code>, though the command line warns about it.
 >>>
-<h3><code>--also-transparent</code> and thin marks</h3>
-<p>The CLI's help says that thin marks blending into the chosen color go with it. In unpixel they do not: <code>adapter.py</code> removes only classes within ΔE 8 of that color. This comes from reading the code; the figure below shows a different consequence, not that case on its own.</p>
+<h3>What <code>--also-transparent</code> takes</h3>
+<p><code>adapter.py</code> removes whole classes within ΔE 8 of the chosen color. A thin mark in another color stays, as the CLI's help says. So the option cannot tell two things apart if they share a class.</p>
 <<< real 2 pix
 {{f10_also_src}} | Source
 {{f10_also}} | <code>--also-transparent {{also_color}}</code>

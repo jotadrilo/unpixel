@@ -4,14 +4,6 @@ from __future__ import annotations
 
 from draw import tr
 
-# The one place that mentions the CLI's flag and default. Delete it, and {{usage_note}} in the templates, when the
-# default changes.
-USAGE_NOTE = tr(
-    "<b>Using it today.</b> Everything here describes unpixel's engine in <code>src/unpixel/engine/</code>. On the command line that behavior needs <code>--engine new</code>, because <code>classic</code> is still the CLI's default.",
-    "<b>Para usarlo hoy.</b> Todo lo que sigue describe el motor de unpixel en <code>src/unpixel/engine/</code>. En la línea de órdenes ese comportamiento requiere <code>--engine new</code>, porque <code>classic</code> sigue siendo la opción predeterminada.",
-)
-
-
 def raster_vector():
     return f"""<svg class="dg" viewBox="0 0 600 200" role="img" aria-label="{tr('The same shape as a pixel grid and as a curve with nodes', 'La misma forma como rejilla de píxeles y como curva con nodos')}">
 <g fill="var(--s1)" stroke="var(--paper)" stroke-width="1">
@@ -105,7 +97,6 @@ def viewer(image_names, first):
 
 def all_values(image_names, first):
     return {
-        "usage_note": USAGE_NOTE,
         "d_raster": raster_vector(),
         "d_pipeline": pipeline(),
         "d_farthest": farthest(),
