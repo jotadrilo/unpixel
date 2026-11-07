@@ -16,9 +16,9 @@ These results use no options at all:
 
 | Original | Result, shown on a check color |
 |---|---|
-| <img src="examples/coffee/input.png" width="300" alt="Black lettering, original"> | <img src="examples/coffee/result.preview.png" width="300" alt="Black lettering, vectorized with no background"> |
-| <img src="examples/car/input.png" width="300" alt="Car with a Christmas tree, original"> | <img src="examples/car/result.preview.png" width="300" alt="Car with a Christmas tree, vectorized with no background"> |
-| <img src="examples/snow-globe/input.png" width="300" alt="Snow globe, original"> | <img src="examples/snow-globe/result.preview.png" width="300" alt="Snow globe, vectorized with no background"> |
+| <img src="battery/leaves.png" width="300" alt="Axolotl astronaut asleep on autumn leaves, original"> | <img src="examples/leaves/result.preview.png" width="300" alt="The same image, vectorized with no background"> |
+| <img src="battery/watchmaker.png" width="300" alt="Axolotl watchmaker at a bench full of tiny parts, original"> | <img src="examples/watchmaker/result.preview.png" width="300" alt="The same image, vectorized with no background"> |
+| <img src="battery/float.png" width="300" alt="Axolotl astronaut on a donut float, original"> | <img src="examples/float/result.preview.png" width="300" alt="The same sticker, vectorized with no background"> |
 
 **[All examples and use cases](examples/README.md)**, each with its input, output and exact command · [En español](examples/README.es.md)
 
@@ -207,9 +207,9 @@ This section is everything an AI agent needs. Follow it in order.
 
 ## Limits
 
-- **It is for flat color.** Detection usually stops at 16 colors and keeps up to 24 when a color is far from the rest. Colors close to another are dropped, with no warning, so pass `--colors` to decide. Soft edges can become colors of their own, as the pale lines between regions do in the [map example](examples/README.md#4-use-exact-brand-colors). Nothing is refused: a photo gets an SVG in flat bands, and an image too busy to trace, like noise, is smoothed first, with a warning. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
-- **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard example. Windows of a few pixels come out as rounded dots. Use the largest source you have.
-- **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. A pale area that touches the outside with no outline disappears with the background, such as [the beard in this example](examples/README.md#1-remove-the-background-and-keep-everything-else). No option separates them. Use `--background keep` for an opaque copy.
+- **It is for flat color.** Detection usually stops at 16 colors and keeps up to 24 when a color is far from the rest. Colors close to another are dropped, with no warning, so pass `--colors` to decide. Soft edges can become colors of their own, and a reduced palette can bring back marks that were dropped, as the stray lines in the [leaves example](examples/README.md#7-reduce-the-number-of-colors) show. Nothing is refused: a photo gets an SVG in flat bands, and an image too busy to trace, like noise, is smoothed first, with a warning. Real gradients come out as bands with wavy edges: see the sky in the [sunset example](examples/README.md#9-photos-paintings-and-noise).
+- **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the diver's suit in `battery/diver.png`, and very small sources lose their fine parts, as in the [small logo example](examples/README.md#3-rescue-a-small-or-blurry-logo). Windows of a few pixels come out as rounded dots. Use the largest source you have.
+- **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. A pale area that touches the outside with no strong outline disappears with the background, such as the white border of the [leaves sticker](examples/README.md#1-remove-the-background-and-keep-everything-else). No option separates them. Use `--background keep` for an opaque copy.
 - **It does not judge contrast.** A dark logo stays dark, even if it is going on a dark surface. Check with `--preview-background`, and recolor with `--colors` if needed.
 - **It is not a watermark remover.** Faint overlays tend to vanish, stronger ones stay, in pieces or whole, with no warning. See [the use case](examples/README.md#11-artwork-with-a-watermark).
 - **Cutout layers meet edge to edge,** so a faint seam can show where colors meet in a renderer that antialiases each shape. Expect a warning when the check finds one.

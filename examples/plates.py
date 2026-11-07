@@ -10,21 +10,26 @@ from PIL import Image
 
 from unpixel.render import render_svg
 
+TILE_WIDTH = 500
+COLUMNS = 3
+GAP = 16
+
 
 def main(svg_path, out_path):
     svg = open(svg_path, encoding="utf-8").read()
     width, height = map(int, re.search(r'viewBox="0 0 (\d+) (\d+)"', svg).groups())
     groups = re.findall(r"<g id=.*?</g>\n", svg, flags=re.S)
     head = svg[: svg.index("<g id=")]
-    scale = 500 / width
-    gap = 16
+    scale = TILE_WIDTH / width
     tile_h = round(height * scale)
-    sheet = Image.new("RGB", ((500 + gap) * len(groups) - gap, tile_h), (255, 255, 255))
+    rows = -(-len(groups) // COLUMNS)
+    sheet = Image.new("RGB", ((TILE_WIDTH + GAP) * COLUMNS - GAP, (tile_h + GAP) * rows - GAP), (255, 255, 255))
     for index, group in enumerate(groups):
         plate = Image.fromarray(render_svg(head + group + "</svg>", width, height, scale * 2))
         tile = Image.new("RGBA", plate.size, (232, 232, 232, 255))
         tile.alpha_composite(plate)
-        sheet.paste(tile.convert("RGB").resize((500, tile_h), Image.LANCZOS), (index * (500 + gap), 0))
+        row, column = divmod(index, COLUMNS)
+        sheet.paste(tile.convert("RGB").resize((TILE_WIDTH, tile_h), Image.LANCZOS), (column * (TILE_WIDTH + GAP), row * (tile_h + GAP)))
     sheet.save(out_path, optimize=True)
 
 
