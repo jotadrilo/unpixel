@@ -131,7 +131,7 @@ def _lines(polyline: np.ndarray) -> np.ndarray:
 
 
 def _order_layers(classes: int, pairs: np.ndarray, weights: np.ndarray, areas: np.ndarray) -> np.ndarray:
-    """z per class: the largest color at the bottom, as today."""
+    """z per class: the largest color at the bottom."""
     z = np.zeros(classes, dtype=np.int32)
     z[np.argsort(-areas, kind="stable")] = np.arange(classes)
     return z
@@ -377,7 +377,7 @@ def clean_labels(
     background_rgb=None,
     scale: int = SCALE,
 ):
-    """Soft or hard artwork to a class map at `scale` times the size. Returns what contours and legacy tracing need."""
+    """Soft or hard artwork to a class map at `scale` times the size. Returns what tracing needs."""
     detail = info.get("detail_factor", 1.0)
     with clock.stage("denoise"):
         lab_raw = lab_mod.perceptual(srgb_to_lab(rgb))
@@ -448,7 +448,7 @@ def working_image(rgb: np.ndarray) -> tuple[np.ndarray, int]:
 
 
 def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_wanted: int | None = None) -> Result:
-    """Variants: 'stacked' and 'cutout' draw shared curves; 'labels' hands the new class map to today's tracer."""
+    """The engine alone, without the CLI's options. Variants: 'stacked' traps its walls, 'cutout' does not."""
     clock = _Clock()
     height, width = rgb.shape[:2]
     info: dict = {}
@@ -490,67 +490,6 @@ def run(rgb: np.ndarray, variant: str = "stacked", title: str = "image", colors_
     out_x, out_y = width / work.shape[1], height / work.shape[0]
     fine, fine_lab, pal, background, palette_all, bg_present, _flat = clean_labels(work, clock, info, colors_wanted, scale=scale)
     colors = [tuple(int(round(float(v))) for v in c) for c in pal.rgb]
-    if variant == "labels":
-        from ..vectorize import build_svg
-        from ..segment import _smooth_partition
-
-        with clock.stage("legacy_trace"):
-            out = fine.copy()
-            if bg_present:
-                out[out == len(pal.lab)] = -1
-            classes = sorted(int(c) for c in np.unique(out))
-            out = _smooth_partition(out, classes, 2.0)
-            svg, layers = build_svg(out, colors, width, height, "stacked", 30, title)
-            info["layers"] = layers
-        return Result(svg, width, height, kind.name, colors, fine, scale, bg_present, clock.t, info)
-
     svg = _trace(fine, fine_lab, palette_all, colors, width, height, scale, title, clock, bg_present, False, under, info,
                  output_scale=(out_x, out_y))
     return Result(svg, width, height, kind.name, colors, fine, scale, bg_present, clock.t, info)
-
-
-def run_palette_only(rgb: np.ndarray, title: str = "image") -> Result:
-    """The new palette with the plain assignment of the earlier hybrid prototype, through today's tracer.
-
-    This is variant 1: it shows the palette alone, with median 3x3, nearest color and absorbed specks.
-    """
-    from ..vectorize import build_svg
-    from ..segment import _smooth_partition
-
-    clock = _Clock()
-    height, width = rgb.shape[:2]
-    info: dict = {"kind": "palette-only"}
-    with clock.stage("denoise"):
-        den = np.stack([ni.median_filter(rgb[..., i], size=3) for i in range(3)], -1)
-        lab = lab_mod.perceptual(srgb_to_lab(den))
-    with clock.stage("background"):
-        background = lab_mod.find_background(lab)
-        bg_present = background.lab is not None
-    with clock.stage("antialiasing"):
-        transition = lab_mod.transition_mask(lab)
-    with clock.stage("palette"):
-        pal = lab_mod.build_palette(lab, ~transition & ~background.mask)
-        info["palette_log"] = pal.log
-    with clock.stage("assign"):
-        best = np.full(lab.shape[:2], np.inf, dtype=np.float32)
-        label = np.zeros(lab.shape[:2], dtype=np.int16)
-        for i, c in enumerate(pal.lab):
-            d = ((lab - c) ** 2).sum(-1)
-            hit = d < best
-            label[hit] = i
-            best[hit] = d[hit]
-        k = len(pal.lab)
-        if bg_present:
-            label[background.mask] = k
-    with clock.stage("specks"):
-        palette_all = np.vstack([pal.lab, background.lab if bg_present else np.full((1, 3), 1e4, dtype=np.float32)])
-        label = lab_mod.absorb_specks(label, palette_all, SPECK_AREA, SPECK_AREA, 1e9)
-    colors = [tuple(int(round(float(v))) for v in c) for c in pal.rgb]
-    with clock.stage("legacy_trace"):
-        fine = np.repeat(np.repeat(label, 2, axis=0), 2, axis=1)
-        if bg_present:
-            fine[fine == k] = -1
-        fine = _smooth_partition(fine, sorted(int(c) for c in np.unique(fine)), 2.0)
-        svg, layers = build_svg(fine, colors, width, height, "stacked", 30, title)
-        info["layers"] = layers
-    return Result(svg, width, height, "palette-only", colors, label, 1, bg_present, clock.t, info)

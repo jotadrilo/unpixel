@@ -41,11 +41,11 @@ def _classes(rgba: np.ndarray, colors) -> np.ndarray:
 
 
 def verify(svg: str, seg, width: int, height: int) -> tuple[dict, np.ndarray, list[tuple[int, int, int, int]]]:
-    """Measure the written SVG against the unsmoothed segmentation. Returns metrics, render, hotspots."""
+    """Measure the written SVG against the segmentation. Returns metrics, render, hotspots."""
     rgba = render_svg(svg, width, height)
     drawn = _classes(rgba, seg.colors)
     shape = drawn.shape
-    raw = _down(seg.raw_labels, shape)
+    raw = _down(seg.labels, shape)
     flat = _down(seg.flat, shape)
     wrong = drawn != raw
     tolerance = max(2, int(round(max(shape) / 2500)))  # differences thinner than this are ordinary edge wobble

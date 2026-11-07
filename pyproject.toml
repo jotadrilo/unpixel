@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-2.0-or-later"
 license-files = ["LICENSE"]
-dependencies = ["numpy>=1.26", "pillow>=10", "scipy>=1.11", "potracer>=0.0.4"]
+dependencies = ["numpy>=1.26", "pillow>=10", "scipy>=1.11"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

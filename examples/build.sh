@@ -18,7 +18,7 @@ $u sleigh/input.png -o sleigh/result.svg
 
 # 2. Make enclosed white see-through too
 $u family/input.png -o family/result.svg
-$u family/input.png --also-transparent '#F8F6F5' -o family/knockout.svg
+$u family/input.png --also-transparent '#F7F5F4' -o family/knockout.svg
 
 # 3. Rescue a small or blurry logo
 $u clapperboard/input.png -o clapperboard/result.svg
@@ -34,9 +34,8 @@ $u poster/input.jpg --background keep -o poster/result.svg
 $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' --layers cutout -o airmail/cutout.svg
 python plates.py airmail/cutout.svg airmail/plates.png
 
-# 7. Reduce the number of colors. Aged paper gives too many tones, so the first run is refused with exit code 3.
+# 7. Reduce the number of colors
 $u airmail/input.jpg --background keep -o airmail/result.svg
-echo "airmail exit code: $? (3 expected)"
 $u airmail/input.jpg --background keep --colors 6 -o airmail/six-colors.svg
 $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA' -o airmail/four-colors.svg
 $u airmail/input.jpg --background keep --colors '#0C1331,#CC3407,#F59562,#FDEDAA,#D9562B' -o airmail/shaded-orange.svg
@@ -53,14 +52,13 @@ $u ornament/input.png -o ornament/medium.svg
 $u ornament/input.png --detail high -o ornament/high.svg
 python compare.py ornament/comparison.png 90,190,330,450 ornament/input.png ornament/low.svg ornament/medium.svg ornament/high.svg
 
-# 9. When unpixel is the wrong tool. Refused on purpose, with exit code 3.
+# 9. When unpixel is the wrong tool
 $u shaded-painting/input.png -o shaded-painting/result.svg
-echo "shaded-painting exit code: $? (3 expected)"
 $u shaded-painting/input.png --colors 6 -o shaded-painting/forced.svg
 
 # 10. Check and recolor for the surface it goes on
-$u family/input.png --also-transparent '#F8F6F5' --preview-background '#1C1C1E' -o family/on-dark.svg
-$u family/input.png --also-transparent '#F8F6F5' --colors '#F2F2F2' --preview-background '#1C1C1E' -o family/light-on-dark.svg
+$u family/input.png --also-transparent '#F7F5F4' --preview-background '#1C1C1E' -o family/on-dark.svg
+$u family/input.png --also-transparent '#F7F5F4' --colors '#F2F2F2' --preview-background '#1C1C1E' -o family/light-on-dark.svg
 
 # 11. Artwork with a watermark
 $u watermark/faint.png -o watermark/faint.svg

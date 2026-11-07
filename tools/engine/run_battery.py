@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE))
 from render import render_jpg  # noqa: E402
 
 IMAGES = "axolotl diver leaves chef ghost watchmaker float sunset principito".split()
-VARIANTS = ["stacked", "cutout", "labels", "palette"]
+VARIANTS = ["stacked", "cutout"]
 
 
 def one(args):

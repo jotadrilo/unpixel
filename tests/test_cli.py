@@ -138,13 +138,14 @@ def test_no_report_writes_only_svg(save, ticket, capsys):
     assert result["report"] is None and result["preview"] is None
 
 
-def test_photo_is_rejected_with_exit_code_3(save, photo, capsys):
+def test_photo_is_traced_and_not_refused(save, photo, capsys):
     code, result = run(capsys, save(photo))
-    assert code == 3
-    assert result["status"] == "error" and "suitable" in result["error"]
+    assert code == 0
+    assert result["status"] == "ok" and result["layers"]
+    assert open(result["svg"]).read(4) == "<svg"
 
 
-def test_too_many_colors_are_reduced_with_a_warning(save, capsys):
+def test_too_many_colors_are_reduced_to_the_palette_cap(save, capsys):
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)
     for i in range(20):
@@ -153,8 +154,7 @@ def test_too_many_colors_are_reduced_with_a_warning(save, capsys):
         draw.rectangle((x, y, x + 90, y + 80), fill=tuple(int(v * 255) for v in hue))
     code, result = run(capsys, save(image))
     assert code == 0
-    assert len(result["layers"]) == 16
-    assert any("most relevant" in warning for warning in result["warnings"])
+    assert len(result["layers"]) == 18  # of the 20 drawn: the engine drops colors close to others, with no warning
 
 
 def test_unreadable_input_exits_2(tmp_path, capsys):

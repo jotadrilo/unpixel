@@ -31,7 +31,7 @@ def see_through(alpha: np.ndarray) -> dict:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("out")
-    p.add_argument("--variants", default="stacked2,cutout2,today")
+    p.add_argument("--variants", default="stacked,cutout")
     p.add_argument("--scales", default="1,3,0.25")
     a = p.parse_args()
     scales = [float(v) for v in a.scales.split(",")]

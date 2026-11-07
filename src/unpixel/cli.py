@@ -1,4 +1,4 @@
-"""Command line interface. Exit codes: 0 ok, 2 bad usage or input, 3 image not suitable."""
+"""Command line interface. Exit codes: 0 ok, 2 bad usage or input."""
 
 from __future__ import annotations
 
@@ -15,17 +15,18 @@ from PIL import Image
 
 from . import __version__
 from .color import parse_hex, to_hex
+from .engine.adapter import InvalidRequest, segment, trace
 from .outline import apply_outline
 from .report import contrast_background, verify, write_preview, write_report
-from .segment import InvalidRequest, UnsuitableImage, segment
 from .ui import Style, open_file, print_error, print_header, print_summary, print_warnings, stage
-from .vectorize import build_svg
 
 Image.MAX_IMAGE_PIXELS = None
 
 
 # Below this, a hole in the artwork is a pinhole at a junction: known, and no reason to send anyone to the preview.
 VISIBLE_HOLE_PIXELS = 20
+LAST_COMMIT_WITH_CLASSIC_ENGINE = "10a1320"
+
 
 @dataclass
 class Options:
@@ -39,7 +40,6 @@ class Options:
     outline: str | None = None
     outline_width: float = 2.0
     outline_color: tuple[int, int, int] = (0, 0, 0)
-    engine: str = "classic"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,8 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Turn flat-color raster artwork (logos, stickers, illustrations) into layered SVG, "
         "with the background made transparent. Writes INPUT.svg, plus INPUT.report.html and "
         "INPUT.preview.png so the result can be checked by eye.",
-        epilog="Exit codes: 0 success; 2 bad arguments, unreadable input or existing output; "
-        "3 image unsuitable (photo, gradients). Warnings do not change the exit code.",
+        epilog="Exit codes: 0 success; 2 bad arguments, unreadable input, existing output, or --also-transparent "
+        "removing every color. Warnings do not change the exit code.",
     )
     parser.add_argument("input", type=Path, help="PNG, JPEG, WebP or any format Pillow reads")
     parser.add_argument("--colors", metavar="SPEC",
@@ -60,8 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="'auto' removes the uniform color touching the image border; 'keep' removes nothing; "
                              "'#RRGGBB' removes that color where it touches the border. Default: auto")
     parser.add_argument("--also-transparent", action="append", default=[], metavar="#RRGGBB",
-                        help="also remove this color inside the artwork, such as white inside letters. Thin marks that "
-                             "blend into it go too. Use the exact value from the warning or 'layers'. Repeatable")
+                        help="also remove this color inside the artwork, such as white inside letters. Only colors close "
+                             "to it go: a thin mark in another color stays. Use the exact value from the warning or "
+                             "'layers'. Repeatable")
     parser.add_argument("--layers", choices=["stacked", "cutout"], default="stacked",
                         help="'stacked' overlaps colors slightly so no seams show (print, screen); 'cutout' makes "
                              "colors never overlap (plotters, screen printing). Default: stacked")
@@ -72,12 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
                              "that already has outlines; 'edges' draws a line wherever two colors meet, for flat "
                              "artwork with none. Default: off")
     parser.add_argument("--outline-width", type=float, metavar="PIXELS",
-                        help="line width for --outline edges, in source pixels. Default: 2")
+                        help="line width for --outline edges, in source pixels. Pixel art draws at least one of its "
+                             "blocks, and above 12 MP lines come out wider. Default: 2")
     parser.add_argument("--outline-color", metavar="#RRGGBB",
                         help="line color for --outline. Default: #000000")
-    parser.add_argument("--engine", choices=["classic", "new"], default="classic",
-                        help="'new' tries the prototype color and contour engine: it never refuses an image, and shares "
-                             "one curve per wall. Default: classic")
+    # Deprecated: there is one engine, and unpixel-web still passes "--engine new". Once no caller passes it, delete
+    # this argument, _check_engine and LAST_COMMIT_WITH_CLASSIC_ENGINE, and the tests named test_engine_flag_*.
+    parser.add_argument("--engine", help=argparse.SUPPRESS)
     parser.add_argument("--preview-background", metavar="#RRGGBB",
                         help="color to show the result on in the preview and report, such as the surface it will "
                              "go on. It is not added to the SVG. Default: a color contrasting with the artwork")
@@ -92,8 +94,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _check_engine(args, parser) -> None:
+    if args.engine == "classic":
+        parser.error(f"the classic engine was removed; commit {LAST_COMMIT_WITH_CLASSIC_ENGINE} is the last one that has "
+                     "it. Drop --engine to use the only engine there is.")
+    if args.engine not in (None, "new"):
+        parser.error(f"unknown --engine {args.engine}. Drop the flag: there is one engine.")
+
+
 def _options(args, parser) -> Options:
-    options = Options(detail=args.detail, layers=args.layers, outline=args.outline, engine=args.engine)
+    options = Options(detail=args.detail, layers=args.layers, outline=args.outline)
     if args.outline_width is not None:
         if args.outline != "edges":
             parser.error("--outline-width needs --outline edges")
@@ -135,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    _check_engine(args, parser)
     options = _options(args, parser)
     if args.open and args.no_report:
         parser.error("--open needs the preview, which --no-report turns off")
@@ -171,15 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         print_header(out, args.input.name, width, height, spaced=show_progress)
     try:
         with stage(err, "Finding colors and background", show_progress):
-            context = None
-            if options.engine == "new":
-                from .engine.adapter import segment_new  # only then: the classic path stays as it was
-
-                seg, context = segment_new(source, options)
-            else:
-                seg = segment(source, options)
-    except UnsuitableImage as error:
-        return _fail(args, 3, f"image not suitable for flat-color tracing: {error}")
+            seg, context = segment(source, options)
     except InvalidRequest as error:
         return _fail(args, 2, str(error))
 
@@ -187,14 +190,8 @@ def main(argv: list[str] | None = None) -> int:
         seg = apply_outline(seg, options.outline, options.outline_width, options.outline_color)
 
     with stage(err, "Tracing shapes", show_progress):
-        if context is not None:
-            from .engine.adapter import trace_new
-
-            svg, layers = trace_new(seg, context, width, height, options.layers, html.escape(args.input.stem),
-                                    outlined=bool(options.outline))
-        else:
-            svg, layers = build_svg(seg.labels, seg.colors, width, height, options.layers, seg.speck_area,
-                                    html.escape(args.input.stem))
+        svg, layers = trace(seg, context, width, height, options.layers, html.escape(args.input.stem),
+                            outlined=bool(options.outline))
     svg_path.parent.mkdir(parents=True, exist_ok=True)
     svg_path.write_text(svg, encoding="utf-8")
 
@@ -205,24 +202,14 @@ def main(argv: list[str] | None = None) -> int:
         with stage(err, "Writing preview and report", show_progress):
             write_preview(svg, width, height, background, preview_path)
             write_report(source, svg, seg, metrics, hotspots, layers, background, args.input.name, report_path)
-    if options.engine == "new":
-        # Shapes share their walls, so a trace of see-through along one is antialiasing. Only a real hole counts.
-        if metrics["opaque_pixels_in_background"] or metrics["holes_in_artwork"] >= VISIBLE_HOLE_PIXELS:
-            seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
-        elif options.layers == "cutout" and metrics["transparent_pixels_in_artwork"]:
-            seg.warnings.append(
-                "Cutout layers meet edge to edge, so a faint seam can show where colors meet. Use the default, "
-                "stacked, unless colors must not overlap."
-            )
-    elif metrics["opaque_pixels_in_background"] or metrics["transparent_pixels_in_artwork"]:
-        if options.layers == "cutout" and not metrics["opaque_pixels_in_background"]:
-            seg.warnings.append(
-                f"Cutout layers leave tiny gaps where colors meet ({metrics['transparent_percent']}% of the image is "
-                "see-through), because each shape is curved separately. Use the default, stacked, unless colors "
-                "must not overlap."
-            )
-        else:
-            seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
+    # Shapes share their walls, so a trace of see-through along one is antialiasing. Only a real hole counts.
+    if metrics["opaque_pixels_in_background"] or metrics["holes_in_artwork"] >= VISIBLE_HOLE_PIXELS:
+        seg.warnings.append("Transparency does not fully match the expected background; inspect the preview.")
+    elif options.layers == "cutout" and metrics["transparent_pixels_in_artwork"]:
+        seg.warnings.append(
+            "Cutout layers meet edge to edge, so a faint seam can show where colors meet. Use the default, "
+            "stacked, unless colors must not overlap."
+        )
 
     if args.open and not open_file(str(preview_path)):
         seg.warnings.append(f"Could not open the preview automatically. It is at {preview_path}.")

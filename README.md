@@ -94,11 +94,11 @@ unpixel INPUT [options]
 |---|---|---|---|
 | `--colors SPEC` | A number (`3`) or a palette (`'#04162E,#BB100F'`) | detected | Too many colors were detected, you need exact brand colors, or you want to recolor. Each detected color becomes the closest one listed, so one value recolors the whole design. The removed background does not count. |
 | `--background MODE` | `auto`, `keep`, `'#RRGGBB'` | `auto` | `auto` removes the uniform color touching the image border. `keep` removes nothing. A color removes that color where it touches the border. |
-| `--also-transparent '#RRGGBB'` | A color. Repeatable | none | Enclosed areas should be see-through too, such as white inside letters. Thin marks that blend into that color go with it, such as fine grey lines on white. Use the exact value from the warning or from `layers`. |
+| `--also-transparent '#RRGGBB'` | A color. Repeatable | none | Enclosed areas should be see-through too, such as white inside letters. Only colors close to that value go: a thin grey line on white stays, as a color of its own, and you can name it too. Use the exact value from the warning or from `layers`. |
 | `--layers MODE` | `stacked`, `cutout` | `stacked` | `stacked` overlaps colors slightly so no seams show (print, screen). `cutout` makes colors never overlap (plotters, screen printing). |
 | `--detail LEVEL` | `low`, `medium`, `high` | `medium` | `low` if edges look jagged. `high` if thin lines or small shapes get lost. |
 | `--outline MODE` | `lines`, `edges` | off | You want only lines. `lines` keeps the darkest color's own shapes, for artwork that already has outlines. `edges` draws a line wherever two colors meet, for flat artwork with none. |
-| `--outline-width PIXELS` | A number above 0 | `2` | The line width for `--outline edges`, in source pixels. |
+| `--outline-width PIXELS` | A number above 0 | `2` | The line width for `--outline edges`, in source pixels. Pixel art draws at least one of its blocks, and above 12 MP lines come out wider, about 11 for 8 at 24 MP. |
 | `--outline-color '#RRGGBB'` | A color | `#000000` | The line color for `--outline`. |
 | `--preview-background '#RRGGBB'` | A color | contrasting color | You know the surface the design goes on: check it there. It only affects the preview and report, not the SVG. |
 | `-o`, `--output FILE.svg` | Path | next to the input | You want the output elsewhere. The report and preview go beside it, and missing folders are created. |
@@ -120,13 +120,13 @@ On a terminal, unpixel shows its progress, a miniature of the result with transp
 
 | File | Contents |
 |---|---|
-| `NAME.svg` | The result: one `<g id="color-N" fill="#RRGGBB">` per color, bottom to top, largest area first. Each shape is a `<path>`, with holes included in it. Text becomes outlines. |
+| `NAME.svg` | The result: one `<g id="color-N" fill="#RRGGBB">` per color, bottom to top. With `stacked`, thick shapes go at the bottom and thin strokes on top; with `cutout`, the largest area goes first. Each shape is a `<path>`, with holes included in it. With `stacked`, a group can also hold `<path class="trap">` strokes, which keep seams from showing. Text becomes outlines. |
 | `NAME.preview.png` | The result on a check color chosen to contrast with the artwork, so halos and gaps are visible. The check color is not in the SVG. |
 | `NAME.report.html` | One self-contained page: original next to result, close-ups of the busiest areas and largest differences, metrics and warnings. |
 
 Illustrator, Inkscape, Figma and browsers open the SVG directly. To get an `.ai` file, open the SVG in Illustrator and save from there.
 
-The SVG's `width` and `height` match the source image in pixels, but it scales to any print size without loss: set the size in your design program. To change a color by hand, edit the `fill` of its `<g>` group.
+The SVG's `width` and `height` match the source image in pixels, but it scales to any print size without loss: set the size in your design program. To change a color by hand, edit the `fill` of its `<g>` group, and the `stroke` of any `class="trap"` path in it. In `cutout` there are no such paths.
 
 ### Exit codes
 
@@ -134,7 +134,8 @@ The SVG's `width` and `height` match the source image in pixels, but it scales t
 |---|---|---|
 | `0` | SVG written. There may be warnings | Read the warnings and check the preview |
 | `2` | Bad arguments, unreadable input, output already exists, or `--also-transparent` would remove every color | Fix the command, or add `--force` if overwriting is intended |
-| `3` | Image unsuitable: a photo, heavy shading, or aged print with too many tones (over 16 colors) | Do not retry with other flags, unless a reduced palette is what is wanted (`--colors N`). This often works well, so judge the preview |
+
+unpixel does not refuse an image for what it shows. A photo or heavy shading gets an SVG too, flattened into bands, so judge the preview.
 
 ## Using unpixel from an AI assistant
 
@@ -171,17 +172,19 @@ This section is everything an AI agent needs. Follow it in order.
   "preview": "art.preview.png",
   "input_size": [1600, 865],
   "background_removed": "#FEFEFE",
-  "working_scale": 4.0,
+  "working_scale": 2.0,
   "layers_mode": "stacked",
+  "outline": null,
   "layers": [
-    {"layer": "color-1", "color": "#020202", "shapes": 83, "area_percent": 20.16},
-    {"layer": "color-2", "color": "#FBFBFB", "shapes": 101, "area_percent": 5.7}
+    {"layer": "color-1", "color": "#FBFBFB", "shapes": 101, "area_percent": 5.7, "class": 1},
+    {"layer": "color-2", "color": "#020202", "shapes": 83, "area_percent": 20.16, "class": 0}
   ],
   "metrics": {
     "transparent_percent": 73.28,
     "expected_transparent_percent": 74.14,
     "opaque_pixels_in_background": 0,
     "transparent_pixels_in_artwork": 0,
+    "holes_in_artwork": 0,
     "edge_difference_percent": 5.96,
     "large_difference_pixels": 0,
     "flat_area_mismatch_percent": 0.0
@@ -195,7 +198,8 @@ This section is everything an AI agent needs. Follow it in order.
 |---|---|---|
 | `background_removed` | Background color removed, or `null` | The expected color |
 | `opaque_pixels_in_background` | Painted pixels well inside the background | `0` |
-| `transparent_pixels_in_artwork` | See-through pixels well inside the artwork | `0` |
+| `transparent_pixels_in_artwork` | Pixels well inside the artwork that are not fully opaque | `0`, or a few along a wall, which are antialiasing |
+| `holes_in_artwork` | See-through pixels well inside the artwork. From 20, unpixel warns | Below `20` |
 | `transparent_percent`, `expected_transparent_percent` | Measured against planned transparency | Within about 2 points. Small sources can differ a little more, because edges weigh more. Look at the preview if so |
 | `flat_area_mismatch_percent` | Flat areas that came out in the wrong color | Below `0.5` |
 | `large_difference_pixels` | Differences thicker than normal edge wobble | Small next to the image size |
@@ -203,35 +207,35 @@ This section is everything an AI agent needs. Follow it in order.
 
 ## Limits
 
-- **It is for flat color.** An image with more than 16 colors is reduced to the 16 most relevant, with a warning, unless you pass `--colors`. Photos with almost no flat color are refused with exit code 3. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
+- **It is for flat color.** Detection usually stops at 16 colors and keeps up to 24 when a color is far from the rest. Colors close to another are dropped, with no warning, so pass `--colors` to decide. Soft edges can become colors of their own, as the pale lines between regions do in the [map example](examples/README.md#4-use-exact-brand-colors). Nothing is refused: a photo gets an SVG in flat bands, and an image too busy to trace, like noise, is smoothed first, with a warning. Real gradients come out as bands, sometimes with a noisy edge: see the sky in the poster example.
 - **It only sees what the image contains.** Text smaller than about 10 source pixels turns into blobs, as on the clapperboard example. Windows of a few pixels come out as rounded dots. Use the largest source you have.
 - **"Connected to the border" is the rule for background.** Enclosed white stays opaque unless you use `--also-transparent`. A pale area that touches the outside with no outline disappears with the background, such as [the beard in this example](examples/README.md#1-remove-the-background-and-keep-everything-else). No option separates them. Use `--background keep` for an opaque copy.
 - **It does not judge contrast.** A dark logo stays dark, even if it is going on a dark surface. Check with `--preview-background`, and recolor with `--colors` if needed.
 - **It is not a watermark remover.** Faint overlays tend to vanish, stronger ones stay, in pieces or whole, with no warning. See [the use case](examples/README.md#11-artwork-with-a-watermark).
-- **Cutout layers can leave tiny gaps** where colors meet, because each shape is curved separately. Expect a warning.
-- **Output is filled shapes.** Text stays as outlines rather than editable text, and lines are not strokes.
-- **Memory and time depend on the working size.** Images are enlarged up to 4× towards a 6400 px long side, so memory is not proportional to the source size. Measured on an Apple Silicon Mac: 588 × 550 px took 9 seconds and 1.2 GB, 3206 × 4075 px took 86 seconds and 6.7 GB, and 7945 × 3973 px took 92 seconds and 6.6 GB. Allow at least 8 GB of free memory for anything over about 1300 px.
+- **Cutout layers meet edge to edge,** so a faint seam can show where colors meet in a renderer that antialiases each shape. Expect a warning when the check finds one.
+- **Output is filled shapes.** Text stays as outlines rather than editable text, and lines are not strokes. The only strokes are the `stacked` trap paths, which follow walls between colors.
+- **Memory and time depend on the working size.** Images up to 4 MP are worked on at twice their size, up to 12 MP at their own size, and larger ones are reduced to 12 MP first, so on a 24 MP image a line of 1 source pixel is lost. Measured on an Apple Silicon Mac: 1379 × 752 px took 4 seconds and 0.6 GB, and 6634 × 3618 px (24 MP) took about 30 seconds and 4.9 GB. Allow at least 5 GB of free memory for large images.
 
 ## How it works
 
-1. Work at a fixed artwork resolution, enlarging small images, so the same settings suit a small icon and a large poster.
-2. Find the dominant colors among pixels away from any edge. Close colors, such as white and cream, form one group. Then look for colors that only thin strokes carry: the center of a stroke that no mix of the known colors can explain.
-3. Sharpen, to recover thin lines in soft sources, and classify each pixel in Lab color space. This keeps a navy-to-white edge from being mistaken for red.
-4. Find connected regions, and give each its own color. This separates white from cream without leaving a false ring around dark outlines.
-5. Mark regions connected to the border and matching the dominant border color as background.
-6. Remove false colors along edges, using a rule that keeps real thin lines. Smooth outlines, and trace each color with [potrace](https://potrace.sourceforge.net/).
-7. Read the written SVG back, measure it against the segmentation, and produce the report.
+1. Decide what kind of image it is. Pixel art keeps its grid and its straight edges, at one class per logical pixel. Anything else is worked on at twice its size up to 4 MP, at its own size up to 12 MP, and reduced to 12 MP above that.
+2. Denoise, and mark transition pixels: those explained as a mix of the pixels on either side. They say nothing about the palette, which keeps a navy-to-white edge from growing a third color.
+3. Flood from the image border to find the background, so interior whites stay.
+4. Choose the palette by farthest-point selection over a color histogram, so a small color far from everything is kept and a large one is not split. Then assign each pixel to a color and dissolve false colors along edges and specks.
+5. Build a map of shared walls between regions. Each wall gets one curve, with corners only where the source has an abrupt cut, placed where the color crosses halfway between its two sides.
+6. Write the paths. Two neighboring colors use the same numbers along their wall, and in `stacked` the color below also strokes that wall, so no seam shows.
+7. Read the written SVG back, measure it against the color map, and produce the report.
 
 ## Development
 
 ```sh
 uv venv && uv pip install -e '.[dev]'
-.venv/bin/pytest                     # about a minute
+.venv/bin/pytest                     # about two minutes
 PATH="$PWD/.venv/bin:$PATH" examples/build.sh    # regenerate the examples
 ```
 
-Tests use synthetic images built in `tests/conftest.py`.
+Tests use synthetic images built in `tests/conftest.py`. A few need `rsvg-convert`, and are skipped without it. `tools/engine/` runs the engine over a folder of images and measures the SVGs it writes.
 
 ## License
 
-GPL-2.0-or-later, because unpixel depends on [potracer](https://github.com/tatarize/potrace), a GPL-licensed port of potrace. SVG files you generate are yours: this license does not apply to the program's output.
+GPL-2.0-or-later. SVG files you generate are yours: this license does not apply to the program's output.

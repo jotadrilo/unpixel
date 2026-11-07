@@ -2,26 +2,39 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
 from scipy import ndimage as ni
 
 from ..color import delta_e, srgb_to_lab, to_hex
-from ..segment import InvalidRequest, Segmentation
 from . import classify as classify_mod
 from . import labels as lab_mod
 from . import pipeline
 
 DETAIL = {"low": 1.5, "medium": 1.0, "high": 0.6}
-TRANSPARENT_MATCH_DE = 8.0  # as today's engine
+TRANSPARENT_MATCH_DE = 8.0
 LOOKS_LIKE_BACKGROUND_DE = 8.0
 FAR_FROM_PALETTE_DE = 25.0
 # More regions than this is noise or a photo's grain, not artwork: the battery's busiest image has about 1,300.
 # Tracing them takes tens of gigabytes and gives an SVG nothing can open, so the image is smoothed and tried again.
 BUSY_REGIONS = 8000
 BUSY_BLUR = (2.0, 4.0, 8.0)  # source pixels
+
+
+class InvalidRequest(Exception):
+    """The options cannot produce a result for this image."""
+
+
+@dataclass
+class Segmentation:
+    labels: np.ndarray  # working-scale class per pixel; -1 means transparent
+    colors: list[tuple[int, int, int]]
+    scale: float
+    flat: np.ndarray  # working-scale mask of pixels away from any edge
+    background: str | None
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -67,7 +80,7 @@ def _pixel_art(rgb, kind, options, clock, info):
     return label, None, palette, colors, background, np.vstack([palette, bg_row]), 1.0 / block, np.ones(label.shape, bool)
 
 
-def segment_new(rgb: np.ndarray, options) -> tuple[Segmentation, Context]:
+def segment(rgb: np.ndarray, options) -> tuple[Segmentation, Context]:
     clock = pipeline._Clock()
     info: dict = {"detail_factor": DETAIL.get(options.detail, 1.0)}
     warnings: list[str] = []
@@ -166,16 +179,12 @@ def segment_new(rgb: np.ndarray, options) -> tuple[Segmentation, Context]:
     background_hex = None
     if background.lab is not None:
         background_hex = to_hex(lab_mod.lab_to_srgb(lab_mod.from_perceptual(background.lab)))
-    speck = max(4, int(pipeline.SPECK_AREA * info["detail_factor"] ** 2 * (grid_scale**2)))
-    seg = Segmentation(
-        labels=out, raw_labels=out.copy(), colors=final_colors, scale=grid_scale, speck_area=speck,
-        flat=flat, background=background_hex, warnings=warnings,
-    )
+    seg = Segmentation(labels=out, colors=final_colors, scale=grid_scale, flat=flat, background=background_hex, warnings=warnings)
     return seg, Context(fine_lab, source_lab, grid_scale, output_scale, exact, info, clock)
 
 
-def trace_new(seg: Segmentation, ctx: Context, width: int, height: int, layers_mode: str, title: str,
-              outlined: bool = False) -> tuple[str, list[dict]]:
+def trace(seg: Segmentation, ctx: Context, width: int, height: int, layers_mode: str, title: str,
+          outlined: bool = False) -> tuple[str, list[dict]]:
     """Trace what the CLI holds. After --outline the labels are lines, with no wall in the source to follow."""
     k = len(seg.colors)
     classes = np.where(seg.labels < 0, k, seg.labels).astype(np.int16)

@@ -6,7 +6,7 @@ import numpy as np
 from scipy import ndimage as ni
 
 from .color import srgb_to_lab, to_hex
-from .segment import Segmentation
+from .engine.adapter import Segmentation
 
 LINES_MAX_AREA = 0.35  # share of the artwork above which the darkest color is unlikely to be a line
 EDGE_WARNINGS = ("Interior areas colored",)  # about colors this mode removes
@@ -49,10 +49,8 @@ def apply_outline(seg: Segmentation, mode: str, width: float, color: tuple[int, 
     labels = np.where(mask, 0, -1).astype(seg.labels.dtype)
     return Segmentation(
         labels=labels,
-        raw_labels=labels.copy(),
         colors=[color],
         scale=seg.scale,
-        speck_area=seg.speck_area,
         flat=seg.flat,
         background=seg.background,
         warnings=warnings,

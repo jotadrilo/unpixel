@@ -1,4 +1,4 @@
-"""What the prototype engine must keep. These hold for the engine alone; the current tests are not changed."""
+"""What the engine must keep, and the CLI on top of it."""
 
 import re
 import shutil
@@ -253,13 +253,6 @@ def test_smoothness_on_a_jagged_wall():
     assert m["sharp30_share"] == 0.0
 
 
-def test_labels_variant_runs_through_todays_tracer():
-    im = Image.new("RGB", (300, 300), (255, 255, 255))
-    ImageDraw.Draw(im).ellipse((60, 60, 240, 240), fill=(30, 30, 40))
-    result = pipeline.run(soft(im), "labels")
-    assert "<path" in result.svg
-
-
 def test_crowded_faint_dots_dissolve_and_strong_or_lone_marks_stay():
     pal = np.array([[60.0, 10, 10], [50.0, 10, 10], [10.0, 0, 0], [99.0, 0, 0]], dtype=np.float32)
     label = np.zeros((200, 400), dtype=np.int16)
@@ -286,7 +279,7 @@ def run_cli(tmp_path, image, *args):
     image.save(source)
     buffer = io.StringIO()
     with redirect_stdout(buffer):
-        code = main([str(source), "--engine", "new", "--json", "--force", *[str(a) for a in args]])
+        code = main([str(source), "--json", "--force", *[str(a) for a in args]])
     return code, _json.loads(buffer.getvalue())
 
 
@@ -299,7 +292,7 @@ def ring_image() -> Image.Image:
     return Image.fromarray(soft(im))
 
 
-def test_cli_new_engine_end_to_end_writes_json_svg_preview_and_report(tmp_path):
+def test_cli_end_to_end_writes_json_svg_preview_and_report(tmp_path):
     code, r = run_cli(tmp_path, ring_image())
     assert code == 0 and r["status"] == "ok"
     assert Path(r["svg"]).exists() and Path(r["preview"]).exists() and Path(r["report"]).exists()
@@ -309,18 +302,18 @@ def test_cli_new_engine_end_to_end_writes_json_svg_preview_and_report(tmp_path):
     assert all("area_percent" in layer for layer in r["layers"])
 
 
-def test_cli_new_engine_color_count(tmp_path):
+def test_cli_color_count(tmp_path):
     code, r = run_cli(tmp_path, ring_image(), "--colors", 2)
     assert code == 0 and len(r["layers"]) == 2
 
 
-def test_cli_new_engine_exact_palette_recolors(tmp_path):
+def test_cli_exact_palette_recolors(tmp_path):
     code, r = run_cli(tmp_path, ring_image(), "--colors", "#000000,#FF0000")
     assert code == 0
     assert {l["color"] for l in r["layers"]} <= {"#000000", "#FF0000"}
 
 
-def test_cli_new_engine_also_transparent_and_background(tmp_path):
+def test_cli_also_transparent_and_background(tmp_path):
     code, first = run_cli(tmp_path, ring_image())
     white = [l["color"] for l in first["layers"] if l["color"].startswith("#F") and int(l["color"][3:5], 16) > 240][0]
     code, r = run_cli(tmp_path, ring_image(), "--also-transparent", white)
@@ -334,7 +327,7 @@ def test_cli_new_engine_also_transparent_and_background(tmp_path):
 
 
 @pytest.mark.parametrize("args", [("--outline", "lines"), ("--outline", "edges", "--outline-width", 3), ("--layers", "cutout")])
-def test_cli_new_engine_outline_and_layers(tmp_path, args):
+def test_cli_outline_and_layers(tmp_path, args):
     code, r = run_cli(tmp_path, ring_image(), *args)
     assert code == 0 and r["status"] == "ok" and r["layers"]
     if args[0] == "--outline":
@@ -343,13 +336,56 @@ def test_cli_new_engine_outline_and_layers(tmp_path, args):
         assert 'class="trap"' not in Path(r["svg"]).read_text()
 
 
-def test_cli_default_engine_is_unchanged(tmp_path, capsys):
-    from unpixel.cli import build_parser
+def test_engine_flag_new_is_a_silent_no_op(tmp_path):
+    code, plain = run_cli(tmp_path, ring_image())
+    svg = Path(plain["svg"]).read_text()
+    code, flagged = run_cli(tmp_path, ring_image(), "--engine", "new")
+    assert code == 0 and flagged == plain
+    assert Path(flagged["svg"]).read_text() == svg
 
-    assert build_parser().parse_args(["x.png"]).engine == "classic"
+
+def test_engine_flag_classic_fails_and_names_the_last_commit_with_it(tmp_path, capsys):
+    from unpixel.cli import LAST_COMMIT_WITH_CLASSIC_ENGINE, main
+
+    with pytest.raises(SystemExit) as stopped:
+        main([str(tmp_path / "x.png"), "--engine", "classic"])
+    assert stopped.value.code == 2
+    assert LAST_COMMIT_WITH_CLASSIC_ENGINE in capsys.readouterr().err
 
 
-def test_cli_pixel_art_through_new_engine(tmp_path):
+def test_engine_flag_rejects_anything_else_and_stays_out_of_the_help(tmp_path, capsys):
+    from unpixel.cli import build_parser, main
+
+    with pytest.raises(SystemExit) as stopped:
+        main([str(tmp_path / "x.png"), "--engine", "turbo"])
+    assert stopped.value.code == 2
+    assert "--engine" not in build_parser().format_help()
+
+
+def test_cli_detail_sets_how_much_small_detail_stays(tmp_path):
+    shapes = {}
+    for level in ("low", "medium", "high"):
+        code, r = run_cli(tmp_path, ring_image(), "--detail", level)
+        assert code == 0
+        shapes[level] = sum(layer["shapes"] for layer in r["layers"])
+    assert shapes["low"] < shapes["medium"] < shapes["high"]
+
+
+def test_cli_also_transparent_takes_only_close_colors_and_leaves_thin_marks(tmp_path):
+    im = Image.new("RGB", (800, 800), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    d.ellipse((60, 60, 740, 740), fill=(10, 10, 20))
+    d.ellipse((160, 160, 640, 640), fill=(250, 250, 250))
+    d.line((250, 400, 550, 400), fill=(150, 150, 150), width=2)
+    code, first = run_cli(tmp_path, im.filter(ImageFilter.GaussianBlur(0.7)))
+    pale = next(layer["color"] for layer in first["layers"] if int(layer["color"][1:3], 16) > 240)
+    assert any(100 < int(layer["color"][1:3], 16) < 200 for layer in first["layers"])
+    code, r = run_cli(tmp_path, im.filter(ImageFilter.GaussianBlur(0.7)), "--also-transparent", pale)
+    assert code == 0
+    assert any(100 < int(layer["color"][1:3], 16) < 200 for layer in r["layers"])  # the thin grey line stays
+
+
+def test_cli_pixel_art(tmp_path):
     code, r = run_cli(tmp_path, synth.pixel_art(16))
     assert code == 0
     text = Path(r["svg"]).read_text()
@@ -410,7 +446,7 @@ def test_a_single_color_image_keeps_its_color_at_any_size(tmp_path, size, capsys
 
     source = tmp_path / "solid.png"
     Image.new("RGB", size, (120, 40, 200)).save(source)
-    assert main(["--engine", "new", "--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
+    assert main(["--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
     report = __import__("json").loads(capsys.readouterr().out)
     assert [layer["color"] for layer in report["layers"]] == ["#7828C8"]
     assert report["background_removed"] is None
@@ -441,7 +477,7 @@ def test_noise_is_smoothed_until_it_can_be_traced(tmp_path, capsys):
     rng = np.random.default_rng(1)
     source = tmp_path / "noise.png"
     Image.fromarray(rng.uniform(0, 255, (500, 600, 3)).astype(np.uint8)).save(source)
-    assert main(["--engine", "new", "--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
+    assert main(["--json", "--force", "-o", str(tmp_path / "out.svg"), str(source)]) == 0
     report = __import__("json").loads(capsys.readouterr().out)
     assert sum(layer["shapes"] for layer in report["layers"]) <= BUSY_REGIONS
     assert any("very busy" in warning for warning in report["warnings"])

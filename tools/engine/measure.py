@@ -4,8 +4,7 @@
 usage: measure.py INPUT_DIR OUTPUT_DIR [--scales 1,0.73,2]
 
 Numbers come from the written SVG and from what rsvg-convert renders of it, not from internal state.
-Boundary numbers count fills only, without the trap strokes, and skip nothing else: today's hidden overlaps
-count, since they are curves a plotter or editor receives too. A turn is the change of direction at a node,
+Boundary numbers count fills only, without the trap strokes, and skip nothing else. A turn is the change of direction at a node,
 in degrees, and "sharp" is a turn above 30 degrees. Segments along the image frame are not counted.
 """
 import argparse

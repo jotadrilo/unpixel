@@ -16,7 +16,7 @@ Image.MAX_IMAGE_PIXELS = None
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("image")
-    p.add_argument("variant", choices=["palette", "labels", "cutout", "stacked", "stacked2", "cutout2"])
+    p.add_argument("variant", choices=["cutout", "stacked"])
     p.add_argument("out")
     p.add_argument("--colors", type=int)
     a = p.parse_args()
@@ -28,10 +28,7 @@ def main():
     rgb = np.asarray(base.convert("RGB"))
     title = Path(a.image).stem
     t0 = time.perf_counter()
-    if a.variant == "palette":
-        r = pipeline.run_palette_only(rgb, title)
-    else:
-        r = pipeline.run(rgb, a.variant.rstrip("2"), title, a.colors)
+    r = pipeline.run(rgb, a.variant, title, a.colors)
     total = time.perf_counter() - t0
     Path(a.out).write_text(r.svg, encoding="utf-8")
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
