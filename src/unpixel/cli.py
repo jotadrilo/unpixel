@@ -18,6 +18,7 @@ from .color import parse_hex, to_hex
 from .engine.adapter import InvalidRequest, segment, trace
 from .outline import apply_outline
 from .report import contrast_background, verify, write_preview, write_report
+from .quality import assess as assess_quality, warning as quality_warning
 from .ui import Style, open_file, print_error, print_header, print_summary, print_warnings, stage
 
 Image.MAX_IMAGE_PIXELS = None
@@ -186,6 +187,11 @@ def main(argv: list[str] | None = None) -> int:
     except InvalidRequest as error:
         return _fail(args, 2, str(error))
 
+    quality = assess_quality(source, context.info.get("kind", ""), 1 / seg.scale if seg.scale else 1.0)
+    quality_note = quality_warning(quality, width, height)
+    if quality_note:
+        seg.warnings.append(quality_note)
+
     if options.outline:
         seg = apply_outline(seg, options.outline, options.outline_width, options.outline_color)
 
@@ -222,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
         "input_size": [width, height],
         "background_removed": seg.background,
         "working_scale": round(seg.scale, 2),
+        "input_quality": quality,
         "layers_mode": options.layers,
         "outline": options.outline,
         "layers": layers,
