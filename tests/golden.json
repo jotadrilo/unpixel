@@ -1,7 +1,7 @@
 {
  "darwin-arm64": {
   "environment": {
-   "python": "3.13",
+   "python": "3.15",
    "numpy": "2.5.4",
    "pillow": "13.0.0",
    "scipy": "1.18.1"
@@ -404,7 +404,7 @@
  },
  "linux-x86_64": {
   "environment": {
-   "python": "3.13",
+   "python": "3.15",
    "numpy": "2.5.4",
    "pillow": "13.0.0",
    "scipy": "1.18.1"

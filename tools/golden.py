@@ -56,7 +56,7 @@ DEPENDENCIES = ("numpy", "pillow", "scipy")
 
 # OpenBLAS picks its kernels by CPU (Nehalem, Haswell, SkylakeX...) and numpy dispatches AVX-512 where it can,
 # and either changes the last digits of some coordinates. Haswell kernels and at most AVX2 run on every
-# x86_64 CI runner, so these make the bytes the same on all of them. Production does not set them.
+# x86_64 CI runner, so these make the bytes the same on all of them. Production sets them too (README, "Same output on every x86_64 host").
 PINNED_X86_64 = {
     "OPENBLAS_CORETYPE": "Haswell",
     "NPY_DISABLE_CPU_FEATURES": "X86_V4 AVX512_ICL AVX512_SPR",

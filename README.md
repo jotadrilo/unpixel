@@ -24,7 +24,7 @@ These results use no options at all:
 
 ## Install
 
-Requires Python 3.10 or newer, and `git`. Nothing else: there are no system libraries to install.
+Requires Python 3.15 or newer, and `git`. Nothing else: there are no system libraries to install. If your system Python is older, `uv tool install` below fetches 3.15 by itself; with pip, install 3.15 first (`uv python install 3.15` also works).
 
 **With [uv](https://docs.astral.sh/uv/) (recommended):**
 
@@ -35,7 +35,7 @@ uv tool install git+https://github.com/jotadrilo/unpixel
 **With pip, in a virtual environment:**
 
 ```sh
-python3 -m venv ~/.venvs/unpixel
+python3.15 -m venv ~/.venvs/unpixel
 ~/.venvs/unpixel/bin/pip install git+https://github.com/jotadrilo/unpixel
 ~/.venvs/unpixel/bin/unpixel --version   # or add that bin directory to your PATH
 ```
@@ -57,14 +57,16 @@ Check it works with `unpixel --version`.
 
 ```sh
 commit=abc1234   # the unpixel commit to install
-python3 -m venv ~/.venvs/unpixel
+python3.15 -m venv ~/.venvs/unpixel
 ~/.venvs/unpixel/bin/pip install --require-hashes --no-deps \
   -r "https://raw.githubusercontent.com/jotadrilo/unpixel/$commit/requirements.lock"
 ~/.venvs/unpixel/bin/pip install --no-deps "unpixel @ git+https://github.com/jotadrilo/unpixel@$commit"
 ~/.venvs/unpixel/bin/pip check
 ```
 
-`--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set per Python range (3.10, 3.11, 3.12 and newer), and pip picks the one for the running Python. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
+`--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set, for Python 3.15. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
+
+On x86_64, also set `OPENBLAS_CORETYPE` and `NPY_DISABLE_CPU_FEATURES` as in [Same output on every x86_64 host](#same-output-on-every-x86_64-host): without them the output depends on the CPU model.
 
 ## Update
 
@@ -252,6 +254,17 @@ PATH="$PWD/.venv/bin:$PATH" examples/build.sh    # regenerate the examples
 After changing a dependency, run `uv lock` and then `uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.lock`: a test fails while `requirements.lock` is not the export of `uv.lock`.
 
 Tests use synthetic images built in `tests/conftest.py`. A few need `rsvg-convert`, and are skipped without it. `tools/engine/` runs the engine over a folder of images and measures the SVGs it writes.
+
+### Same output on every x86_64 host
+
+On x86_64, the same code, Python and locked libraries still give a slightly different SVG on different CPU models: OpenBLAS picks its kernels by CPU (Nehalem, Haswell, SkylakeX...) and numpy uses AVX-512 where the CPU has it, and either moves some coordinates by up to about 2 pixels. Across GitHub's runners, an AMD EPYC 7763 gave one output and the EPYC 9V45/9V74 and Intel Xeon models another. To get one output everywhere, run unpixel with these two variables set, which is what production does and what the goldens are recorded with:
+
+```sh
+OPENBLAS_CORETYPE=Haswell
+NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+```
+
+Haswell kernels and at most AVX2 exist on every x86_64 server CPU in use, so these make AMD and Intel hosts give the same bytes, byte for byte the `linux-x86_64` goldens. They change nothing on arm64.
 
 ### Golden outputs
 
