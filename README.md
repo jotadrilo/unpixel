@@ -24,7 +24,7 @@ These results use no options at all:
 
 ## Install
 
-Requires Python 3.10 or newer, and `git`. Nothing else: there are no system libraries to install.
+Requires Python 3.15 or newer, and `git`. Nothing else: there are no system libraries to install. If your system Python is older, `uv tool install` below fetches 3.15 by itself; with pip, install 3.15 first (`uv python install 3.15` also works).
 
 **With [uv](https://docs.astral.sh/uv/) (recommended):**
 
@@ -35,7 +35,7 @@ uv tool install git+https://github.com/jotadrilo/unpixel
 **With pip, in a virtual environment:**
 
 ```sh
-python3 -m venv ~/.venvs/unpixel
+python3.15 -m venv ~/.venvs/unpixel
 ~/.venvs/unpixel/bin/pip install git+https://github.com/jotadrilo/unpixel
 ~/.venvs/unpixel/bin/unpixel --version   # or add that bin directory to your PATH
 ```
@@ -57,14 +57,14 @@ Check it works with `unpixel --version`.
 
 ```sh
 commit=abc1234   # the unpixel commit to install
-python3 -m venv ~/.venvs/unpixel
+python3.15 -m venv ~/.venvs/unpixel
 ~/.venvs/unpixel/bin/pip install --require-hashes --no-deps \
   -r "https://raw.githubusercontent.com/jotadrilo/unpixel/$commit/requirements.lock"
 ~/.venvs/unpixel/bin/pip install --no-deps "unpixel @ git+https://github.com/jotadrilo/unpixel@$commit"
 ~/.venvs/unpixel/bin/pip check
 ```
 
-`--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set per Python range (3.10, 3.11, 3.12 and newer), and pip picks the one for the running Python. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
+`--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set, for Python 3.15. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
 
 ## Update
 
@@ -257,7 +257,9 @@ Tests use synthetic images built in `tests/conftest.py`. A few need `rsvg-conver
 
 `tests/test_golden.py` runs the CLI on every image in `battery/` and on `examples/axolotl/input.png`, with no options and with the options that take other paths (`--colors`, `--layers cutout`, `--also-transparent`, `--background keep`, `--detail`, `--outline edges`), and checks that each SVG has the SHA-256 recorded in `tests/golden.json`. CI runs it on every push and pull request, so any change to the output fails there, whether it comes from the code or from a dependency update, with the cases that changed and how (size, palette). Add `-m 'not golden'` to pytest to skip it while working.
 
-The goldens are exact hashes, per platform. The same code and locked libraries do not give the same bytes everywhere: float32 math in OpenBLAS, numpy's SIMD kernels and the C library moves a few coordinates, by 0.01 to about 4 pixels, and on 10 of the 17 cases macOS arm64 and the Linux x86_64 runners differ. Linux x86_64 under Docker on a Mac differs from both. So `tests/golden.json` holds one set per platform (`darwin-arm64` for local work, `linux-x86_64` for CI), with the Python minor and library versions they were made with. On x86_64, `tools/golden.py` pins the CPU kernels (`OPENBLAS_CORETYPE=Haswell`, no AVX-512 in numpy), and with that, AMD EPYC 7763, AMD EPYC 9V74 and Intel Xeon 8573C runners give the same bytes. The test skips a platform with no goldens, and a Python minor other than the recorded one, because the lock picks different library versions for it.
+The goldens are exact hashes, per platform. The same code and locked libraries do not give the same bytes everywhere: float32 math in OpenBLAS, numpy's SIMD kernels and the C library moves a few coordinates, by 0.01 to about 4 pixels, and on 10 of the 17 cases macOS arm64 and the Linux x86_64 runners differ. Linux x86_64 under Docker on a Mac differs from both. So `tests/golden.json` holds one set per platform (`darwin-arm64` for local work, `linux-x86_64` for CI), with the Python minor and library versions they were made with. On x86_64, `tools/golden.py` pins the CPU kernels (`OPENBLAS_CORETYPE=Haswell`, no AVX-512 in numpy), and with that, AMD EPYC 7763, AMD EPYC 9V74 and Intel Xeon 8573C runners give the same bytes. The test skips a platform with no goldens, and a Python minor other than the recorded one, because the lock picks different library versions for it. Production sets the same two variables, so its output is the same on every x86_64 host and matches these goldens.
+
+To see what a change does before that, the **Battery compare** workflow (`.github/workflows/battery-compare.yml`) runs every case on several x86_64 runners, as production runs it today and as the branch runs it, and uploads the SVGs, PNG renders, pixel diffs and a `manifest.json` with the numbers per case and the CPU models seen.
 
 Refresh the goldens only on purpose, **after the owner has validated the new output on the battery** (`battery/README.md`). Then record both platforms:
 
