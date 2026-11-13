@@ -66,6 +66,8 @@ python3.15 -m venv ~/.venvs/unpixel
 
 `--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set, for Python 3.15. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
 
+On x86_64, also set `OPENBLAS_CORETYPE` and `NPY_DISABLE_CPU_FEATURES` as in [Same output on every x86_64 host](#same-output-on-every-x86_64-host): without them the output depends on the CPU model.
+
 ## Update
 
 Use the command that matches how you installed unpixel.
@@ -253,13 +255,22 @@ After changing a dependency, run `uv lock` and then `uv export --locked --no-dev
 
 Tests use synthetic images built in `tests/conftest.py`. A few need `rsvg-convert`, and are skipped without it. `tools/engine/` runs the engine over a folder of images and measures the SVGs it writes.
 
+### Same output on every x86_64 host
+
+On x86_64, the same code, Python and locked libraries still give a slightly different SVG on different CPU models: OpenBLAS picks its kernels by CPU (Nehalem, Haswell, SkylakeX...) and numpy uses AVX-512 where the CPU has it, and either moves some coordinates by up to about 2 pixels. Across GitHub's runners, an AMD EPYC 7763 gave one output and the EPYC 9V45/9V74 and Intel Xeon models another. To get one output everywhere, run unpixel with these two variables set, which is what production does and what the goldens are recorded with:
+
+```sh
+OPENBLAS_CORETYPE=Haswell
+NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+```
+
+Haswell kernels and at most AVX2 exist on every x86_64 server CPU in use, so these make AMD and Intel hosts give the same bytes, byte for byte the `linux-x86_64` goldens. They change nothing on arm64.
+
 ### Golden outputs
 
 `tests/test_golden.py` runs the CLI on every image in `battery/` and on `examples/axolotl/input.png`, with no options and with the options that take other paths (`--colors`, `--layers cutout`, `--also-transparent`, `--background keep`, `--detail`, `--outline edges`), and checks that each SVG has the SHA-256 recorded in `tests/golden.json`. CI runs it on every push and pull request, so any change to the output fails there, whether it comes from the code or from a dependency update, with the cases that changed and how (size, palette). Add `-m 'not golden'` to pytest to skip it while working.
 
-The goldens are exact hashes, per platform. The same code and locked libraries do not give the same bytes everywhere: float32 math in OpenBLAS, numpy's SIMD kernels and the C library moves a few coordinates, by 0.01 to about 4 pixels, and on 10 of the 17 cases macOS arm64 and the Linux x86_64 runners differ. Linux x86_64 under Docker on a Mac differs from both. So `tests/golden.json` holds one set per platform (`darwin-arm64` for local work, `linux-x86_64` for CI), with the Python minor and library versions they were made with. On x86_64, `tools/golden.py` pins the CPU kernels (`OPENBLAS_CORETYPE=Haswell`, no AVX-512 in numpy), and with that, AMD EPYC 7763, AMD EPYC 9V74 and Intel Xeon 8573C runners give the same bytes. The test skips a platform with no goldens, and a Python minor other than the recorded one, because the lock picks different library versions for it. Production sets the same two variables, so its output is the same on every x86_64 host and matches these goldens.
-
-To see what a change does before that, the **Battery compare** workflow (`.github/workflows/battery-compare.yml`) runs every case on several x86_64 runners, as production runs it today and as the branch runs it, and uploads the SVGs, PNG renders, pixel diffs and a `manifest.json` with the numbers per case and the CPU models seen.
+The goldens are exact hashes, per platform. The same code and locked libraries do not give the same bytes everywhere: float32 math in OpenBLAS, numpy's SIMD kernels and the C library moves a few coordinates, by 0.01 to about 4 pixels, and on 10 of the 17 cases macOS arm64 and the Linux x86_64 runners differ. Linux x86_64 under Docker on a Mac differs from both. So `tests/golden.json` holds one set per platform (`darwin-arm64` for local work, `linux-x86_64` for CI), with the Python minor and library versions they were made with. On x86_64, `tools/golden.py` pins the CPU kernels (`OPENBLAS_CORETYPE=Haswell`, no AVX-512 in numpy), and with that, AMD EPYC 7763, AMD EPYC 9V74 and Intel Xeon 8573C runners give the same bytes. The test skips a platform with no goldens, and a Python minor other than the recorded one, because the lock picks different library versions for it.
 
 Refresh the goldens only on purpose, **after the owner has validated the new output on the battery** (`battery/README.md`). Then record both platforms:
 
