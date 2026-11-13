@@ -51,6 +51,21 @@ uv venv && uv pip install -e '.[dev]'
 
 Check it works with `unpixel --version`.
 
+### With the locked dependency versions
+
+`pyproject.toml` accepts a range of numpy, Pillow and SciPy versions, so a plain install gets whatever is newest that day. A different version of one of them can change the SVG slightly. To get the exact versions unpixel is tested and its output checked with, the ones in `uv.lock`, install the dependencies from `requirements.lock` (the same versions, exported for pip, with hashes) at the same commit as unpixel, then unpixel itself without dependencies:
+
+```sh
+commit=abc1234   # the unpixel commit to install
+python3 -m venv ~/.venvs/unpixel
+~/.venvs/unpixel/bin/pip install --require-hashes --no-deps \
+  -r "https://raw.githubusercontent.com/jotadrilo/unpixel/$commit/requirements.lock"
+~/.venvs/unpixel/bin/pip install --no-deps "unpixel @ git+https://github.com/jotadrilo/unpixel@$commit"
+~/.venvs/unpixel/bin/pip check
+```
+
+`--require-hashes` makes pip refuse any file whose hash differs from the lock. The lock holds one version set per Python range (3.10, 3.11, 3.12 and newer), and pip picks the one for the running Python. With uv, the same two steps are `uv pip install --require-hashes --no-deps -r <url>` and `uv pip install --no-deps "unpixel @ git+…"`. pip cannot take `requirements.lock` as a constraints file (`-c`): its hashes would make pip demand a hash for unpixel too, which a git install does not have.
+
 ## Update
 
 Use the command that matches how you installed unpixel.
@@ -229,12 +244,27 @@ This section is everything an AI agent needs. Follow it in order.
 ## Development
 
 ```sh
-uv venv && uv pip install -e '.[dev]'
+uv sync --locked --all-extras        # the locked versions from uv.lock, plus pytest
 .venv/bin/pytest                     # about two minutes
 PATH="$PWD/.venv/bin:$PATH" examples/build.sh    # regenerate the examples
 ```
 
+After changing a dependency, run `uv lock` and then `uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.lock`: a test fails while `requirements.lock` is not the export of `uv.lock`.
+
 Tests use synthetic images built in `tests/conftest.py`. A few need `rsvg-convert`, and are skipped without it. `tools/engine/` runs the engine over a folder of images and measures the SVGs it writes.
+
+### Golden outputs
+
+`tests/test_golden.py` runs the CLI on every image in `battery/` and on `examples/axolotl/input.png`, with no options and with the options that take other paths (`--colors`, `--layers cutout`, `--also-transparent`, `--background keep`, `--detail`, `--outline edges`), and checks that each SVG has the SHA-256 recorded in `tests/golden.json`. CI runs it on every push and pull request, so any change to the output fails there, whether it comes from the code or from a dependency update, with the cases that changed and how (size, palette). Add `-m 'not golden'` to pytest to skip it while working.
+
+The goldens are exact hashes, per platform. The same code and locked libraries do not give the same bytes everywhere: float32 math in OpenBLAS, numpy's SIMD kernels and the C library moves a few coordinates, by 0.01 to about 4 pixels, and on 10 of the 17 cases macOS arm64 and the Linux x86_64 runners differ. Linux x86_64 under Docker on a Mac differs from both. So `tests/golden.json` holds one set per platform (`darwin-arm64` for local work, `linux-x86_64` for CI), with the Python minor and library versions they were made with. On x86_64, `tools/golden.py` pins the CPU kernels (`OPENBLAS_CORETYPE=Haswell`, no AVX-512 in numpy), and with that, AMD EPYC 7763, AMD EPYC 9V74 and Intel Xeon 8573C runners give the same bytes. The test skips a platform with no goldens, and a Python minor other than the recorded one, because the lock picks different library versions for it.
+
+Refresh the goldens only on purpose, **after the owner has validated the new output on the battery** (`battery/README.md`). Then record both platforms:
+
+1. On a Mac: `.venv/bin/python tools/golden.py --update` records `darwin-arm64`.
+2. On GitHub: run the **Record goldens** workflow (Actions tab, or `gh workflow run goldens.yml --ref <branch>`) on the branch with the change. It records `linux-x86_64` on a runner and uploads `golden.json` plus the SVGs as an artifact. Copy its `linux-x86_64` entry into `tests/golden.json` (`gh run download` fetches the artifact).
+
+Commit `tests/golden.json` with the change. Without `--update`, `tools/golden.py` checks and lists what changed; `--out DIR` keeps the SVGs to look at.
 
 ## License
 

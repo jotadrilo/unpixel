@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>jotadrilo/ci"],
+  "packageRules": [
+    {
+      "description": "numpy, Pillow and SciPy shape the SVG: an update can change unpixel's output, and needs the battery check.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
+      "addLabels": ["changes-output?"],
+      "prBodyNotes": [
+        "⚠️ **Runtime dependency of the engine.** This update can change unpixel's SVG output. If the golden-output check (`tests/test_golden.py`) fails, do not merge until the owner has compared the new output with the old on the image battery (`battery/README.md`) and approved it; then refresh the goldens (README, \"Golden outputs\") in this PR. `requirements.lock` is not updated by Renovate: regenerate it with `uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.lock` (the lock test fails until then)."
+      ]
+    },
+    {
+      "description": "Monthly lock file maintenance moves numpy, Pillow and SciPy too.",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "addLabels": ["changes-output?"],
+      "prBodyNotes": [
+        "⚠️ **Refreshes the locked runtime dependencies of the engine.** This can change unpixel's SVG output. If the golden-output check (`tests/test_golden.py`) fails, do not merge until the owner has compared the new output with the old on the image battery (`battery/README.md`) and approved it; then refresh the goldens (README, \"Golden outputs\") in this PR. `requirements.lock` is not updated by Renovate: regenerate it with `uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.lock` (the lock test fails until then)."
+      ]
+    }
+  ]
+}

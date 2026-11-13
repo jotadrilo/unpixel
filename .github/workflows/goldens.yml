@@ -1,0 +1,45 @@
+# Records the linux-x86_64 goldens on a GitHub runner, the platform CI checks them on, and uploads
+# tests/golden.json and the SVGs as an artifact. Run it only after the owner has validated the new
+# output on the battery (README, "Golden outputs"), then copy the artifact's linux-x86_64 entry into
+# tests/golden.json and commit it with the change.
+name: Record goldens
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    name: Record linux-x86_64 goldens
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # renovate: datasource=pypi depName=uv
+          version: 0.13.5
+          enable-cache: true
+
+      - name: Record
+        env:
+          UV_PYTHON: "3.13"
+        run: |
+          grep -m1 'model name' /proc/cpuinfo
+          uv sync --locked --no-dev
+          .venv/bin/python tools/golden.py --out "$RUNNER_TEMP/goldens/svg" || true
+          .venv/bin/python tools/golden.py --update
+          cp tests/golden.json "$RUNNER_TEMP/goldens/"
+
+      - name: Upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: goldens
+          path: ${{ runner.temp }}/goldens

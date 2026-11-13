@@ -23,3 +23,4 @@ packages = ["src/unpixel"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["golden: compares the battery's SVGs with tests/golden.json (slow; deselect with -m 'not golden')"]
