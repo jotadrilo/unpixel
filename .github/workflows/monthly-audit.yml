@@ -1,0 +1,17 @@
+name: Monthly dependency audit
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    uses: jotadrilo/ci/.github/workflows/monthly-audit.yml@v1
+    with:
+      go: false
+      python: true

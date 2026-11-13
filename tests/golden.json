@@ -1,0 +1,808 @@
+{
+ "darwin-arm64": {
+  "environment": {
+   "python": "3.13",
+   "numpy": "2.5.4",
+   "pillow": "13.0.0",
+   "scipy": "1.18.1"
+  },
+  "cases": {
+   "axolotl": {
+    "args": [],
+    "sha256": "4650afb465532f5207fd665d9ace80aa7d8a42a8520552487758c18039f7491b",
+    "bytes": 256579,
+    "palette": [
+     "#FBBD28",
+     "#FCBBCE",
+     "#0EBCAD",
+     "#F74C82",
+     "#0A9F93",
+     "#F99D19",
+     "#875CEF",
+     "#E19126",
+     "#F9F9FA",
+     "#F78EAE",
+     "#1C152B",
+     "#F7D8B0",
+     "#FDCE68",
+     "#77E8E1",
+     "#089F93",
+     "#B9A9F5"
+    ]
+   },
+   "chef": {
+    "args": [],
+    "sha256": "368aabb7d6ac544c77121247b9fcc708f1d2dbb91e311900ef5328457f0b802a",
+    "bytes": 100738,
+    "palette": [
+     "#FAD3A4",
+     "#E3A169",
+     "#FDD453",
+     "#FCBECD",
+     "#FDFDFD",
+     "#F66F87",
+     "#FCB13C",
+     "#D7E4EA",
+     "#F0C49B",
+     "#4A2636",
+     "#E87890",
+     "#9AA7AD",
+     "#FBE1DE",
+     "#A4B1B7",
+     "#68343E",
+     "#5D423A"
+    ]
+   },
+   "diver": {
+    "args": [],
+    "sha256": "e08816a3137262456807a06cd7618a8dea5000f183694ad6a2aa4ce2362f54d4",
+    "bytes": 502825,
+    "palette": [
+     "#B73A53",
+     "#EFBDD3",
+     "#305578",
+     "#4B8AA0",
+     "#60A8B9",
+     "#BBF4F5",
+     "#E1F9FA",
+     "#84F1ED",
+     "#253C5F",
+     "#E16488",
+     "#3F6D89",
+     "#3A326B",
+     "#79C7D1",
+     "#564B89",
+     "#1E163B",
+     "#D392AF",
+     "#E19995",
+     "#E3C0B5",
+     "#F2F0F6",
+     "#8987B8"
+    ]
+   },
+   "float": {
+    "args": [],
+    "sha256": "0d85a11ff21743abee071f3ba9969131589d293df3684131fbfe27a545319f90",
+    "bytes": 454785,
+    "palette": [
+     "#FDD23C",
+     "#FD5F9B",
+     "#FBFBFB",
+     "#FB9E51",
+     "#FDBF5A",
+     "#0EB8AC",
+     "#FDB8CE",
+     "#D87435",
+     "#FEEBA0",
+     "#745ED2",
+     "#13968E",
+     "#E97BA1",
+     "#F6D1E3",
+     "#21162D",
+     "#B5B6C5",
+     "#87D5DB",
+     "#ECB287",
+     "#E7E7E7",
+     "#AE9DEB"
+    ]
+   },
+   "ghost": {
+    "args": [],
+    "sha256": "f08dd53e2232709758182706e59c4347b326cf545d37840e96e30c3cd0de7e9a",
+    "bytes": 122161,
+    "palette": [
+     "#FDFEFD",
+     "#F9F6EF",
+     "#F9EDEB",
+     "#F2D9D9",
+     "#DFDDD7",
+     "#DDD4D0",
+     "#EBDBD8",
+     "#EEEBE3"
+    ]
+   },
+   "leaves": {
+    "args": [],
+    "sha256": "a0143c9981635b7571856e34254adbbfa3decff515558b6f69ddbb403a756e3b",
+    "bytes": 462553,
+    "palette": [
+     "#FBB7C4",
+     "#2BB7AC",
+     "#FCFBFB",
+     "#BE7544",
+     "#EB7F45",
+     "#EE879A",
+     "#F0AA66",
+     "#BE4F3A",
+     "#D8623D",
+     "#238989",
+     "#2E1D2D",
+     "#D45A6F",
+     "#7968BA",
+     "#89D3D0",
+     "#4B1C17",
+     "#B3A1DE",
+     "#E6E6E6"
+    ]
+   },
+   "principito": {
+    "args": [],
+    "sha256": "dda19820b1cb1bbad29ff3c99194e465a4f8727be841718d922933ed2034cd53",
+    "bytes": 247802,
+    "palette": [
+     "#B07728",
+     "#6A73BE",
+     "#8388CC",
+     "#CD8A33",
+     "#FDCF0B",
+     "#8B531E",
+     "#505BAD",
+     "#93CB34",
+     "#43B140",
+     "#B8C3F9",
+     "#079835",
+     "#740C11",
+     "#F33628",
+     "#9C311F",
+     "#F8D0AD",
+     "#2348AE",
+     "#5E3617",
+     "#09295F",
+     "#130703"
+    ]
+   },
+   "sunset": {
+    "args": [],
+    "sha256": "328c118a9a15ba07577a7fc6ef02b1047559f363cea82ead0352216f231e1c71",
+    "bytes": 252760,
+    "palette": [
+     "#60316A",
+     "#82446F",
+     "#EB8776",
+     "#F59D77",
+     "#FBB47D",
+     "#AF5E76",
+     "#D37179",
+     "#5F5079",
+     "#82597B",
+     "#FBD0AB",
+     "#2E5F72",
+     "#419294",
+     "#F0BEBF",
+     "#E78F9A",
+     "#5CB5AB",
+     "#A593A5"
+    ]
+   },
+   "watchmaker": {
+    "args": [],
+    "sha256": "3021880ec4a1dd1a8b86f1a7ee7019df07afae4618caa18ed4d9059545929351",
+    "bytes": 731474,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#E26881",
+     "#94635C",
+     "#FACCD6",
+     "#325D6C",
+     "#F5F2F3",
+     "#2E1E2D",
+     "#E192A9",
+     "#EED4BD",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "axolotl-colors-8": {
+    "args": [
+     "--colors",
+     "8"
+    ],
+    "sha256": "6481ba2ee95ddc0e68d1806bf69410bb338a10664d67d6345a5dea1bb230c4b9",
+    "bytes": 221919,
+    "palette": [
+     "#FABB2E",
+     "#14BAAB",
+     "#FCBBCD",
+     "#F74C82",
+     "#875CEF",
+     "#F9F8F9",
+     "#1C152B",
+     "#B9A9F5"
+    ]
+   },
+   "axolotl-cutout-6": {
+    "args": [
+     "--colors",
+     "6",
+     "--layers",
+     "cutout"
+    ],
+    "sha256": "f01d9b18eb4efd71dacd4f6f8df74c3af7cd6e1b6307817db57866ead506d761",
+    "bytes": 153964,
+    "palette": [
+     "#1C152B",
+     "#14BAAB",
+     "#FABB2E",
+     "#FCBDCF",
+     "#F64D83",
+     "#865DEF"
+    ]
+   },
+   "axolotl-brand": {
+    "args": [
+     "--colors",
+     "#FFB800,#FFC2D6,#00B8D4,#0090A8,#FF2E7E,#6A3DF0,#14102A,#FFFFFF,#FF8A00"
+    ],
+    "sha256": "0c2aa23f2a31d2099a8a2839f531a5cc63dd17220282cdeaf9e4462471322b00",
+    "bytes": 227231,
+    "palette": [
+     "#FFB800",
+     "#00B8D4",
+     "#FFC2D6",
+     "#FF2E7E",
+     "#0090A8",
+     "#6A3DF0",
+     "#FF8A00",
+     "#FFFFFF",
+     "#14102A"
+    ]
+   },
+   "float-knockout": {
+    "args": [
+     "--also-transparent",
+     "#FBFBFB"
+    ],
+    "sha256": "38ad9936c1059f903f21612e9cd87d00366b8448a9b2fc31e58dd4a1f51ee39a",
+    "bytes": 357592,
+    "palette": [
+     "#FDD23C",
+     "#FD5F9B",
+     "#FB9E51",
+     "#FDBF5A",
+     "#0EB8AC",
+     "#FDB8CE",
+     "#D87435",
+     "#FEEBA0",
+     "#745ED2",
+     "#13968E",
+     "#E97BA1",
+     "#F6D1E3",
+     "#21162D",
+     "#B5B6C5",
+     "#87D5DB",
+     "#ECB287",
+     "#AE9DEB"
+    ]
+   },
+   "principito-keep": {
+    "args": [
+     "--background",
+     "keep"
+    ],
+    "sha256": "dda19820b1cb1bbad29ff3c99194e465a4f8727be841718d922933ed2034cd53",
+    "bytes": 247802,
+    "palette": [
+     "#B07728",
+     "#6A73BE",
+     "#8388CC",
+     "#CD8A33",
+     "#FDCF0B",
+     "#8B531E",
+     "#505BAD",
+     "#93CB34",
+     "#43B140",
+     "#B8C3F9",
+     "#079835",
+     "#740C11",
+     "#F33628",
+     "#9C311F",
+     "#F8D0AD",
+     "#2348AE",
+     "#5E3617",
+     "#09295F",
+     "#130703"
+    ]
+   },
+   "watchmaker-low": {
+    "args": [
+     "--detail",
+     "low"
+    ],
+    "sha256": "a159d596f709f620a3a1fadbdd1f0f87e6eac8a08949439a178636fdb9f314ac",
+    "bytes": 664390,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#94635C",
+     "#E26881",
+     "#FACCD6",
+     "#325D6C",
+     "#F5F2F3",
+     "#E192A9",
+     "#2E1E2D",
+     "#EED4BD",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "watchmaker-high": {
+    "args": [
+     "--detail",
+     "high"
+    ],
+    "sha256": "80f5eea15dcd3cadd21f027ea9385454795b97d8724790757e3112887f2519c0",
+    "bytes": 886343,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#E26881",
+     "#94635C",
+     "#FACCD6",
+     "#2E1E2D",
+     "#F5F2F3",
+     "#325D6C",
+     "#EED4BD",
+     "#E192A9",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "chef-outline-edges": {
+    "args": [
+     "--outline",
+     "edges"
+    ],
+    "sha256": "9831115f71c9b68dafffbe6111d41f24d2852b09c5a44e16ff02d56e142f1546",
+    "bytes": 103563,
+    "palette": [
+     "#000000"
+    ]
+   }
+  }
+ },
+ "linux-x86_64": {
+  "environment": {
+   "python": "3.13",
+   "numpy": "2.5.4",
+   "pillow": "13.0.0",
+   "scipy": "1.18.1"
+  },
+  "cases": {
+   "axolotl": {
+    "args": [],
+    "sha256": "4650afb465532f5207fd665d9ace80aa7d8a42a8520552487758c18039f7491b",
+    "bytes": 256579,
+    "palette": [
+     "#FBBD28",
+     "#FCBBCE",
+     "#0EBCAD",
+     "#F74C82",
+     "#0A9F93",
+     "#F99D19",
+     "#875CEF",
+     "#E19126",
+     "#F9F9FA",
+     "#F78EAE",
+     "#1C152B",
+     "#F7D8B0",
+     "#FDCE68",
+     "#77E8E1",
+     "#089F93",
+     "#B9A9F5"
+    ]
+   },
+   "chef": {
+    "args": [],
+    "sha256": "c9da11dd06ab25ad923c14fdc216e0de6e68d3e28809ac364992a16e49e3f6ce",
+    "bytes": 100736,
+    "palette": [
+     "#FAD3A4",
+     "#E3A169",
+     "#FDD453",
+     "#FCBECD",
+     "#FDFDFD",
+     "#F66F87",
+     "#FCB13C",
+     "#D7E4EA",
+     "#F0C49B",
+     "#4A2636",
+     "#E87890",
+     "#9AA7AD",
+     "#FBE1DE",
+     "#A4B1B7",
+     "#68343E",
+     "#5D423A"
+    ]
+   },
+   "diver": {
+    "args": [],
+    "sha256": "dfb243d6ab2a6a0702d236683ef245e6593723a78884c2f59352a416052b6bde",
+    "bytes": 502909,
+    "palette": [
+     "#B73A53",
+     "#EFBDD3",
+     "#305578",
+     "#4B8AA0",
+     "#60A8B9",
+     "#BBF4F5",
+     "#E1F9FA",
+     "#84F1ED",
+     "#253C5F",
+     "#E16488",
+     "#3F6D89",
+     "#3A326B",
+     "#79C7D1",
+     "#564B89",
+     "#1E163B",
+     "#D392AF",
+     "#E19995",
+     "#E3C0B5",
+     "#F2F0F6",
+     "#8987B8"
+    ]
+   },
+   "float": {
+    "args": [],
+    "sha256": "226e3639227e88e98c2c805bae817bb18269cf93ab91a47ad4a475553245caa3",
+    "bytes": 454703,
+    "palette": [
+     "#FDD23C",
+     "#FD5F9B",
+     "#FBFBFB",
+     "#FB9E51",
+     "#FDBF5A",
+     "#0EB8AC",
+     "#FDB8CE",
+     "#D87435",
+     "#FEEBA0",
+     "#745ED2",
+     "#13968E",
+     "#E97BA1",
+     "#F6D1E3",
+     "#21162D",
+     "#B5B6C5",
+     "#87D5DB",
+     "#ECB287",
+     "#E7E7E7",
+     "#AE9DEB"
+    ]
+   },
+   "ghost": {
+    "args": [],
+    "sha256": "2dac3ad6d1072b3fbfa3ca7889943c3cc8ec4e1f8dfb51696560227a74e0f58c",
+    "bytes": 122187,
+    "palette": [
+     "#FDFEFD",
+     "#F9F6EF",
+     "#F9EDEB",
+     "#F2D9D9",
+     "#DFDDD7",
+     "#DDD4D0",
+     "#EBDBD8",
+     "#EEEBE3"
+    ]
+   },
+   "leaves": {
+    "args": [],
+    "sha256": "a0143c9981635b7571856e34254adbbfa3decff515558b6f69ddbb403a756e3b",
+    "bytes": 462553,
+    "palette": [
+     "#FBB7C4",
+     "#2BB7AC",
+     "#FCFBFB",
+     "#BE7544",
+     "#EB7F45",
+     "#EE879A",
+     "#F0AA66",
+     "#BE4F3A",
+     "#D8623D",
+     "#238989",
+     "#2E1D2D",
+     "#D45A6F",
+     "#7968BA",
+     "#89D3D0",
+     "#4B1C17",
+     "#B3A1DE",
+     "#E6E6E6"
+    ]
+   },
+   "principito": {
+    "args": [],
+    "sha256": "dda19820b1cb1bbad29ff3c99194e465a4f8727be841718d922933ed2034cd53",
+    "bytes": 247802,
+    "palette": [
+     "#B07728",
+     "#6A73BE",
+     "#8388CC",
+     "#CD8A33",
+     "#FDCF0B",
+     "#8B531E",
+     "#505BAD",
+     "#93CB34",
+     "#43B140",
+     "#B8C3F9",
+     "#079835",
+     "#740C11",
+     "#F33628",
+     "#9C311F",
+     "#F8D0AD",
+     "#2348AE",
+     "#5E3617",
+     "#09295F",
+     "#130703"
+    ]
+   },
+   "sunset": {
+    "args": [],
+    "sha256": "b99aa24059df6a461bddcbcc6ea1d7dfca563890652752eee0e77de0dbc0939a",
+    "bytes": 252760,
+    "palette": [
+     "#60316A",
+     "#82446F",
+     "#EB8776",
+     "#F59D77",
+     "#FBB47D",
+     "#AF5E76",
+     "#D37179",
+     "#5F5079",
+     "#82597B",
+     "#FBD0AB",
+     "#2E5F72",
+     "#419294",
+     "#F0BEBF",
+     "#E78F9A",
+     "#5CB5AB",
+     "#A593A5"
+    ]
+   },
+   "watchmaker": {
+    "args": [],
+    "sha256": "94f3e479dcb6e9d28a648c6263b9ccf8ffef1f4b0049aec3c61d3e3434003f4e",
+    "bytes": 731476,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#E26881",
+     "#94635C",
+     "#FACCD6",
+     "#325D6C",
+     "#F5F2F3",
+     "#2E1E2D",
+     "#E192A9",
+     "#EED4BD",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "axolotl-colors-8": {
+    "args": [
+     "--colors",
+     "8"
+    ],
+    "sha256": "6481ba2ee95ddc0e68d1806bf69410bb338a10664d67d6345a5dea1bb230c4b9",
+    "bytes": 221919,
+    "palette": [
+     "#FABB2E",
+     "#14BAAB",
+     "#FCBBCD",
+     "#F74C82",
+     "#875CEF",
+     "#F9F8F9",
+     "#1C152B",
+     "#B9A9F5"
+    ]
+   },
+   "axolotl-cutout-6": {
+    "args": [
+     "--colors",
+     "6",
+     "--layers",
+     "cutout"
+    ],
+    "sha256": "f01d9b18eb4efd71dacd4f6f8df74c3af7cd6e1b6307817db57866ead506d761",
+    "bytes": 153964,
+    "palette": [
+     "#1C152B",
+     "#14BAAB",
+     "#FABB2E",
+     "#FCBDCF",
+     "#F64D83",
+     "#865DEF"
+    ]
+   },
+   "axolotl-brand": {
+    "args": [
+     "--colors",
+     "#FFB800,#FFC2D6,#00B8D4,#0090A8,#FF2E7E,#6A3DF0,#14102A,#FFFFFF,#FF8A00"
+    ],
+    "sha256": "0c2aa23f2a31d2099a8a2839f531a5cc63dd17220282cdeaf9e4462471322b00",
+    "bytes": 227231,
+    "palette": [
+     "#FFB800",
+     "#00B8D4",
+     "#FFC2D6",
+     "#FF2E7E",
+     "#0090A8",
+     "#6A3DF0",
+     "#FF8A00",
+     "#FFFFFF",
+     "#14102A"
+    ]
+   },
+   "float-knockout": {
+    "args": [
+     "--also-transparent",
+     "#FBFBFB"
+    ],
+    "sha256": "c3698dfc08879696fafc9677f632727c21106e2e6d7c7e5a9cd0b3969b33ceb9",
+    "bytes": 357510,
+    "palette": [
+     "#FDD23C",
+     "#FD5F9B",
+     "#FB9E51",
+     "#FDBF5A",
+     "#0EB8AC",
+     "#FDB8CE",
+     "#D87435",
+     "#FEEBA0",
+     "#745ED2",
+     "#13968E",
+     "#E97BA1",
+     "#F6D1E3",
+     "#21162D",
+     "#B5B6C5",
+     "#87D5DB",
+     "#ECB287",
+     "#AE9DEB"
+    ]
+   },
+   "principito-keep": {
+    "args": [
+     "--background",
+     "keep"
+    ],
+    "sha256": "dda19820b1cb1bbad29ff3c99194e465a4f8727be841718d922933ed2034cd53",
+    "bytes": 247802,
+    "palette": [
+     "#B07728",
+     "#6A73BE",
+     "#8388CC",
+     "#CD8A33",
+     "#FDCF0B",
+     "#8B531E",
+     "#505BAD",
+     "#93CB34",
+     "#43B140",
+     "#B8C3F9",
+     "#079835",
+     "#740C11",
+     "#F33628",
+     "#9C311F",
+     "#F8D0AD",
+     "#2348AE",
+     "#5E3617",
+     "#09295F",
+     "#130703"
+    ]
+   },
+   "watchmaker-low": {
+    "args": [
+     "--detail",
+     "low"
+    ],
+    "sha256": "749efb2525d6ac23cc3e85cb8cd2925a97cac3cf09df2a7e1546c2cc889777aa",
+    "bytes": 664392,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#94635C",
+     "#E26881",
+     "#FACCD6",
+     "#325D6C",
+     "#F5F2F3",
+     "#E192A9",
+     "#2E1E2D",
+     "#EED4BD",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "watchmaker-high": {
+    "args": [
+     "--detail",
+     "high"
+    ],
+    "sha256": "9fbb65e20b6f5017c6dec79990c9a4d74110ff651fd230b8e73db684a81f1397",
+    "bytes": 886345,
+    "palette": [
+     "#FBBBCA",
+     "#428794",
+     "#377381",
+     "#D19C80",
+     "#E88BA0",
+     "#DFAE90",
+     "#E26881",
+     "#94635C",
+     "#FACCD6",
+     "#2E1E2D",
+     "#F5F2F3",
+     "#325D6C",
+     "#EED4BD",
+     "#E192A9",
+     "#E5E1E6",
+     "#A19A9A",
+     "#736E79",
+     "#A3C5BC",
+     "#4B3029"
+    ]
+   },
+   "chef-outline-edges": {
+    "args": [
+     "--outline",
+     "edges"
+    ],
+    "sha256": "87dd67cf5c8f67bca29482a1f6467a856a48e372f81d80a583ad21ee6fbec596",
+    "bytes": 103598,
+    "palette": [
+     "#000000"
+    ]
+   }
+  }
+ }
+}

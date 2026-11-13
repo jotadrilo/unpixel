@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    # Tests from uv.lock on Python 3.11 and on production's 3.13. On 3.13 this includes the golden-output
+    # check (tests/test_golden.py): a change to any battery SVG fails it. Not 3.10, although pyproject.toml
+    # allows it: Pillow 13, the first without its open vulnerabilities, needs 3.11, so pip-audit fails there.
+    uses: jotadrilo/ci/.github/workflows/python-ci.yml@v1
+    with:
+      python-versions: '["3.11", "3.13"]'
+      apt-packages: librsvg2-bin
